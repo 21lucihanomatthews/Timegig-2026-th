@@ -289,7 +289,14 @@ export default function App() {
   const [viewMode, setViewMode] = useState<'street' | 'satellite'>('street');
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [authMode, setAuthMode] = useState<AuthMode>('signin');
-  const [currentUser, setCurrentUser] = useState<{ email: string; isRegistered: boolean } | null>(() => {
+  const [currentUser, setCurrentUser] = useState<{ 
+    email: string; 
+    isRegistered: boolean;
+    name?: string;
+    surname?: string;
+    contact?: string;
+    selfieUrl?: string;
+  } | null>(() => {
     const saved = localStorage.getItem('world_explorer_user');
     return saved ? JSON.parse(saved) : null;
   });
@@ -360,6 +367,24 @@ export default function App() {
     }
   };
 
+  const captureSelfie = () => {
+    if (videoRef.current && currentUser) {
+      const canvas = document.createElement('canvas');
+      canvas.width = videoRef.current.videoWidth;
+      canvas.height = videoRef.current.videoHeight;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        // Mirror the image to match the preview
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(videoRef.current, 0, 0);
+        const dataUrl = canvas.toDataURL('image/jpeg');
+        setCurrentUser({ ...currentUser, selfieUrl: dataUrl });
+      }
+    }
+    nextStep();
+  };
+
   useEffect(() => {
     if (isActivated && step === 'selfie') {
       startCamera();
@@ -412,9 +437,13 @@ export default function App() {
     setTimeout(() => {
       setIsLoading(false);
       if (authMode === 'signin') {
-        // Mock registered user for demo if email is 'test@test.com'
         const isRegistered = email === 'test@test.com';
-        setCurrentUser({ email, isRegistered });
+        const name = formData.get('name') as string || 'John';
+        const surname = formData.get('surname') as string || 'Doe';
+        const contact = formData.get('contact') as string || '+1 234 567 890';
+        const mockSelfie = 'https://api.dicebear.com/7.x/avataaars/svg?seed=John';
+        
+        setCurrentUser({ email, isRegistered, name, surname, contact, selfieUrl: mockSelfie });
         setAuthMode('welcome');
         setTimeout(() => {
           setIsAuthOpen(false);
@@ -423,14 +452,22 @@ export default function App() {
           }
         }, 2000);
       } else {
+        const name = formData.get('name') as string;
+        const surname = formData.get('surname') as string;
+        const contact = formData.get('contact') as string;
+        
         setAuthMode('congrats');
-        setCurrentUser({ email, isRegistered: false });
+        setCurrentUser({ email, isRegistered: false, name, surname, contact });
         setTimeout(() => {
           setIsAuthOpen(false);
           setIsActivated(true);
         }, 2000);
       }
     }, 1500);
+  };
+
+  const handleTabClick = (tab: TabType) => {
+    setActiveTab(prev => prev === tab ? 'map' : tab);
   };
 
   return (
@@ -464,31 +501,44 @@ export default function App() {
               exit={{ opacity: 0 }}
               className="absolute inset-0 z-[1500] bg-white flex flex-col items-center justify-center p-10"
             >
-              <button 
-                onClick={() => setActiveTab('map')}
-                className="absolute top-6 left-6 flex items-center gap-2 text-black font-bold uppercase tracking-widest text-xs"
-              >
-                <X className="w-4 h-4" />
-                Back to Map
-              </button>
-              <div className="text-center w-full max-w-lg">
+              <div className="text-center w-full max-w-lg pb-20">
                 <h1 className="text-4xl font-bold text-black uppercase tracking-[0.2em] mb-4">{activeTab}</h1>
                 <p className="text-slate-400 font-medium mb-12">Coming soon to the platform</p>
                 
                 {activeTab === 'profile' && (
-                  <div className="border-t border-slate-100 pt-12">
-                    <div className="bg-slate-50 rounded-3xl p-8 mb-8 text-left">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Account Holder</p>
-                      <p className="text-lg font-bold text-black mb-4">{currentUser?.email}</p>
-                      <div className="flex items-center gap-2 text-emerald-600">
-                        <CheckCircle2 className="w-4 h-4" />
-                        <span className="text-xs font-bold uppercase tracking-wider">Fully Activated</span>
+                  <div className="border-t border-slate-100 pt-8">
+                    {/* Big Profile Logo (Selfie) */}
+                    <div className="flex flex-col items-center mb-8">
+                      <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-slate-100 shadow-xl bg-slate-50 flex items-center justify-center mb-4">
+                        {currentUser?.selfieUrl ? (
+                          <img src={currentUser.selfieUrl} alt="Profile" className="w-full h-full object-cover" />
+                        ) : (
+                          <UserCircle className="w-20 h-20 text-slate-200" />
+                        )}
+                      </div>
+                      <h3 className="text-2xl font-bold text-black tracking-tight">
+                        {currentUser?.name} {currentUser?.surname}
+                      </h3>
+                      <p className="text-blue-600 text-xs font-bold uppercase tracking-widest mt-1 flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3" /> Activated
+                      </p>
+                    </div>
+
+                    {/* Contact Information */}
+                    <div className="space-y-4 text-left mb-10">
+                      <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                        <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-1 ml-1">Email Address</p>
+                        <p className="text-sm font-medium text-black ml-1">{currentUser?.email}</p>
+                      </div>
+                      <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                        <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-1 ml-1">Contact Number</p>
+                        <p className="text-sm font-medium text-black ml-1">{currentUser?.contact}</p>
                       </div>
                     </div>
                     
                     <button 
                       onClick={resetAccount}
-                      className="w-full py-4 bg-red-50 text-red-600 rounded-2xl font-bold uppercase tracking-widest text-xs hover:bg-red-100 transition-colors flex items-center justify-center gap-2"
+                      className="w-full py-4 bg-red-50 text-red-600 rounded-2xl font-bold uppercase tracking-widest text-[10px] hover:bg-red-100 transition-colors flex items-center justify-center gap-2"
                     >
                       <X className="w-4 h-4" />
                       Reset Account & Logout
@@ -548,39 +598,74 @@ export default function App() {
                       <p className="text-slate-500">{authMode === 'signin' ? 'Access your account' : 'Create your account to continue'}</p>
                     </div>
 
-                    <form onSubmit={handleAuth} className="space-y-4">
+                    <form onSubmit={handleAuth} className="space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-[8px] font-bold uppercase tracking-widest text-slate-400 mb-1 ml-1">Name</label>
+                          <input 
+                            name="name"
+                            type="text" 
+                            required 
+                            className="w-full h-10 px-3 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-black transition-all"
+                            placeholder="John"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[8px] font-bold uppercase tracking-widest text-slate-400 mb-1 ml-1">Surname</label>
+                          <input 
+                            name="surname"
+                            type="text" 
+                            required 
+                            className="w-full h-10 px-3 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-black transition-all"
+                            placeholder="Doe"
+                          />
+                        </div>
+                      </div>
+                      
                       <div>
-                        <label className="block text-xs font-bold uppercase tracking-widest text-slate-400 mb-1 ml-1">Email Address</label>
+                        <label className="block text-[8px] font-bold uppercase tracking-widest text-slate-400 mb-1 ml-1">Email Address</label>
                         <input 
                           name="email"
                           type="email" 
                           required 
-                          className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-black transition-all"
+                          className="w-full h-10 px-3 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-black transition-all"
                           placeholder="name@example.com"
                         />
                       </div>
+
                       <div>
-                        <label className="block text-xs font-bold uppercase tracking-widest text-slate-400 mb-1 ml-1">Password</label>
+                        <label className="block text-[8px] font-bold uppercase tracking-widest text-slate-400 mb-1 ml-1">Contact Number</label>
+                        <input 
+                          name="contact"
+                          type="tel" 
+                          required 
+                          className="w-full h-10 px-3 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-black transition-all"
+                          placeholder="+1 234 567 890"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[8px] font-bold uppercase tracking-widest text-slate-400 mb-1 ml-1">Password</label>
                         <input 
                           name="password"
                           type="password" 
                           required 
-                          className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-black transition-all"
+                          className="w-full h-10 px-3 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-black transition-all"
                           placeholder="••••••••"
                         />
                       </div>
                       
                       {authMode === 'signup' && (
                         <div className="flex items-center gap-3 p-1">
-                          <input type="checkbox" required className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
-                          <label className="text-xs text-slate-500 font-medium">I accept the <span className="text-blue-600 underline">Terms & Conditions</span></label>
+                          <input type="checkbox" required className="w-3 h-3 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
+                          <label className="text-[10px] text-slate-500 font-medium">I accept the <span className="text-blue-600 underline">Terms & Conditions</span></label>
                         </div>
                       )}
 
                       <button 
                         disabled={isLoading}
                         type="submit" 
-                        className="w-full h-14 bg-black text-white rounded-xl font-bold hover:bg-slate-800 transition-all shadow-lg flex items-center justify-center gap-2"
+                        className="w-full h-12 bg-black text-white rounded-xl font-bold hover:bg-slate-800 transition-all shadow-lg flex items-center justify-center gap-2"
                       >
                         {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : (authMode === 'signin' ? 'Sign In' : 'Sign Up')}
                       </button>
@@ -703,7 +788,7 @@ export default function App() {
                       </div>
 
                       <button 
-                        onClick={nextStep} 
+                        onClick={captureSelfie} 
                         disabled={!!cameraError}
                         className={`w-full max-w-sm py-4 rounded-xl font-bold transition-all flex items-center justify-center gap-2 ${cameraError ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-slate-900 text-white hover:bg-slate-800'}`}
                       >
@@ -836,8 +921,8 @@ export default function App() {
         </AnimatePresence>
 
         {/* Bottom Menu Bar (2D Style) */}
-        <div className="absolute bottom-0 left-0 w-full z-[1000]">
-          <div className="bg-white border-t border-slate-200 h-16 px-6 flex items-center justify-between shadow-[0_-1px_10px_rgba(0,0,0,0.05)]">
+        <div className="absolute bottom-0 left-0 w-full z-[3000]">
+          <div className="bg-white border-t border-slate-200 h-20 px-6 flex items-center justify-between shadow-[0_-1px_10px_rgba(0,0,0,0.05)] pb-4">
             {!currentUser ? (
               <div className="flex items-center justify-center w-full">
                 <TabButton 
@@ -849,11 +934,17 @@ export default function App() {
               </div>
             ) : isFullyActivated ? (
               <div className="flex items-center justify-between w-full">
-                <TabButton icon={<Users />} label="Tenant" active={activeTab === 'tenant'} onClick={() => setActiveTab('tenant')} />
-                <TabButton icon={<MapIcon />} label="Referrals" active={activeTab === 'referrals'} onClick={() => setActiveTab('referrals')} />
-                <TabButton icon={<Smartphone />} label="Gadgets" active={activeTab === 'gadgets'} onClick={() => setActiveTab('gadgets')} />
-                <TabButton icon={<UserSearch />} label="Seekers" active={activeTab === 'seekers'} onClick={() => setActiveTab('seekers')} />
-                <TabButton icon={<UserCircle />} label="Profile" active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} />
+                <TabButton icon={<Users />} label="Tenant" active={activeTab === 'tenant'} onClick={() => handleTabClick('tenant')} />
+                <TabButton icon={<MapIcon />} label="Referrals" active={activeTab === 'referrals'} onClick={() => handleTabClick('referrals')} />
+                <TabButton icon={<Smartphone />} label="Gadgets" active={activeTab === 'gadgets'} onClick={() => handleTabClick('gadgets')} />
+                <TabButton icon={<UserSearch />} label="Seekers" active={activeTab === 'seekers'} onClick={() => handleTabClick('seekers')} />
+                <TabButton 
+                  icon={<UserCircle />} 
+                  label="Profile" 
+                  active={activeTab === 'profile'} 
+                  onClick={() => handleTabClick('profile')} 
+                  image={currentUser?.selfieUrl}
+                />
               </div>
             ) : (
               <div className="flex items-center justify-center w-full">
@@ -872,19 +963,24 @@ export default function App() {
   );
 }
 
-function TabButton({ icon, label, active, onClick }: { 
+function TabButton({ icon, label, active, onClick, image }: { 
   icon: React.ReactNode; 
   label: string; 
   active: boolean; 
-  onClick: () => void 
+  onClick: () => void;
+  image?: string;
 }) {
   return (
     <button 
       onClick={onClick}
       className={`flex flex-col items-center gap-1 transition-all ${active ? 'scale-110' : 'hover:opacity-80'}`}
     >
-      <div className={`w-6 h-6 text-black transition-all ${active ? 'fill-black' : ''}`}>
-        {icon}
+      <div className={`w-6 h-6 flex items-center justify-center transition-all ${active ? 'fill-black' : ''}`}>
+        {image ? (
+          <div className="w-6 h-6 rounded-full overflow-hidden border border-black/10">
+            <img src={image} className="w-full h-full object-cover" alt={label} />
+          </div>
+        ) : icon}
       </div>
       <span className="text-[9px] font-bold uppercase tracking-wider text-black">{label}</span>
     </button>
