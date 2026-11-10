@@ -1242,45 +1242,45 @@ export default function App() {
                 <div className="p-8 md:p-12">
                   {step === 'subscription' && (
                     <div className="text-center">
-                      <h2 className="text-3xl font-bold text-slate-900 mb-2">Activation Plans</h2>
-                      <p className="text-slate-500 mb-10 max-w-md mx-auto">Select a subscription to unlock full platform features and join the network.</p>
-                      <div className="grid lg:grid-cols-2 gap-8 items-stretch justify-center max-w-5xl mx-auto">
+                      <h2 className="text-2xl font-bold text-slate-900 mb-1">Choose Activation Plan</h2>
+                      <p className="text-slate-500 text-xs mb-6 max-w-sm mx-auto">Select a subscription to activate your account and join the network.</p>
+                      <div className="grid md:grid-cols-2 gap-5 items-stretch justify-center max-w-3xl mx-auto">
                         {/* Tenant Sub */}
                         <motion.div 
                           whileHover={{ scale: 1.01 }}
                           onClick={() => handleSubSelect('tenant')}
-                          className="relative w-full bg-slate-50 border-2 border-transparent hover:border-black rounded-[2.5rem] p-8 shadow-xl cursor-pointer group transition-all flex flex-col text-left"
+                          className="relative w-full bg-slate-50 border-2 border-slate-200 hover:border-black rounded-3xl p-6 shadow-md cursor-pointer group transition-all flex flex-col text-left"
                         >
-                          <div className="flex justify-between items-start mb-8">
-                            <div className="w-14 h-14 bg-black rounded-2xl flex items-center justify-center text-white shadow-lg">
-                              <Smartphone className="w-8 h-8" />
+                          <div className="flex justify-between items-start mb-4">
+                            <div className="w-10 h-10 bg-black rounded-xl flex items-center justify-center text-white shadow-sm">
+                              <Smartphone className="w-5 h-5" />
                             </div>
                             <div className="text-right">
-                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-1">Monthly</p>
-                              <p className="text-2xl font-black text-black">R299,99</p>
+                              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Monthly</p>
+                              <p className="text-lg font-black text-black">R299,99</p>
                             </div>
                           </div>
                           
-                          <h3 className="text-2xl font-bold text-black mb-4">Tenant Network</h3>
-                          <p className="text-slate-500 text-sm mb-8">The ultimate business plan for those looking to build a network and earn passive income.</p>
+                          <h3 className="text-lg font-bold text-black mb-1">Tenant Network</h3>
+                          <p className="text-slate-500 text-xs mb-5">Earn passive monthly income & manage your referral network.</p>
                           
-                          <div className="space-y-4 mb-10 flex-grow">
+                          <div className="space-y-2.5 mb-6 flex-grow">
                             {[
                               'Earn passive monthly income',
-                              'Build and manage your network',
-                              'Approve/Reject referral apps',
-                              'Freeze/Unfreeze user accounts',
-                              'Full access to GiGs & Seekers'
+                              'Build & manage your network',
+                              'Approve/Reject referrals',
+                              'Freeze/Unfreeze accounts',
+                              'Full GiGs & Seekers access'
                             ].map((feat, i) => (
-                              <div key={i} className="flex items-center gap-3 text-sm font-medium text-slate-700">
-                                <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                              <div key={i} className="flex items-center gap-2.5 text-xs font-medium text-slate-700">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                                 <span>{feat}</span>
                               </div>
                             ))}
                           </div>
                           
-                          <div className="mt-auto pt-6 border-t border-slate-200">
-                            <span className="w-full py-4 bg-black text-white rounded-2xl font-bold text-xs uppercase tracking-widest text-center block group-hover:bg-slate-800 transition-colors">Select Tenant Plan</span>
+                          <div className="mt-auto pt-4 border-t border-slate-200">
+                            <span className="w-full py-3 bg-black text-white rounded-xl font-bold text-[10px] uppercase tracking-widest text-center block group-hover:bg-slate-800 transition-colors">Select Tenant</span>
                           </div>
                         </motion.div>
 
@@ -1288,38 +1288,38 @@ export default function App() {
                         <motion.div 
                           whileHover={{ scale: 1.01 }}
                           onClick={() => handleSubSelect('user')}
-                          className="relative w-full bg-slate-50 border-2 border-transparent hover:border-black rounded-[2.5rem] p-8 shadow-xl cursor-pointer group transition-all flex flex-col text-left"
+                          className="relative w-full bg-slate-50 border-2 border-slate-200 hover:border-black rounded-3xl p-6 shadow-md cursor-pointer group transition-all flex flex-col text-left"
                         >
-                          <div className="flex justify-between items-start mb-8">
-                            <div className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-lg">
-                              <Navigation className="w-8 h-8" />
+                          <div className="flex justify-between items-start mb-4">
+                            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-sm">
+                              <Navigation className="w-5 h-5" />
                             </div>
                             <div className="text-right">
-                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-1">Monthly</p>
-                              <p className="text-2xl font-black text-black">R29,99</p>
+                              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Monthly</p>
+                              <p className="text-lg font-black text-black">R29,99</p>
                             </div>
                           </div>
                           
-                          <h3 className="text-2xl font-bold text-black mb-4">User Subscription</h3>
-                          <p className="text-slate-500 text-sm mb-8">Perfect for individuals who want to use the platform services and hire specialized seekers.</p>
+                          <h3 className="text-lg font-bold text-black mb-1">User Subscription</h3>
+                          <p className="text-slate-500 text-xs mb-5">Access platform services and hire specialized seekers.</p>
                           
-                          <div className="space-y-4 mb-10 flex-grow">
+                          <div className="space-y-2.5 mb-6 flex-grow">
                             {[
-                              'Full access to GiGs & Seekers',
+                              'Full GiGs & Seekers access',
                               'Professional profile activation',
-                              'Hire seekers for specialized tasks',
-                              'Live voice-guided navigation',
+                              'Hire seekers for tasks',
+                              'Live voice navigation',
                               'Global platform usage'
                             ].map((feat, i) => (
-                              <div key={i} className="flex items-center gap-3 text-sm font-medium text-slate-700">
-                                <CheckCircle2 className="w-4 h-4 text-blue-500 shrink-0" />
+                              <div key={i} className="flex items-center gap-2.5 text-xs font-medium text-slate-700">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-blue-500 shrink-0" />
                                 <span>{feat}</span>
                               </div>
                             ))}
                           </div>
 
-                          <div className="mt-auto pt-6 border-t border-slate-200">
-                            <span className="w-full py-4 bg-blue-600 text-white rounded-2xl font-bold text-xs uppercase tracking-widest text-center block group-hover:bg-blue-700 transition-colors">Select User Plan</span>
+                          <div className="mt-auto pt-4 border-t border-slate-200">
+                            <span className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest text-center block group-hover:bg-blue-700 transition-colors">Select User</span>
                           </div>
                         </motion.div>
                       </div>
