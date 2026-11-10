@@ -4,7 +4,7 @@ import L from 'leaflet';
 import { Search, Satellite, Map as MapIcon, Zap, Plus, Minus, Navigation, Camera, FileUp, Receipt, CheckCircle2, Loader2, X, Users, Briefcase, UserSearch, UserCircle, Smartphone, LogIn, LogOut, UserPlus, Share2, Copy, Check, Sparkles, ExternalLink } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { auth, googleProvider, db } from './firebase';
-import { signInWithPopup, signOut } from 'firebase/auth';
+import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, setDoc, collection, onSnapshot, updateDoc } from 'firebase/firestore';
 
 // Fix for default marker icons
@@ -420,7 +420,14 @@ export default function App() {
 
   const [referralSearch, setReferralSearch] = useState('');
   const [seekerSearch, setSeekerSearch] = useState('');
-  const [tenantProfit, setTenantProfit] = useState({ total: 0, sub: 0, user: 0 });
+  const [tenantProfit, setTenantProfit] = useState<{ total: number; sub: number; user: number }>(() => {
+    try {
+      const saved = localStorage.getItem('world_explorer_tenant_profit');
+      return saved ? JSON.parse(saved) : { total: 0, sub: 0, user: 0 };
+    } catch {
+      return { total: 0, sub: 0, user: 0 };
+    }
+  });
   const [activeTab, setActiveTab] = useState<TabType>('map');
   const [step, setStep] = useState<OnboardingStep>('subscription');
   const [selectedSub, setSelectedSub] = useState<'tenant' | 'user' | null>(() => {
@@ -481,9 +488,19 @@ export default function App() {
     localStorage.setItem('world_explorer_referrals', JSON.stringify(referralApplications));
   }, [referralApplications]);
 
+  const [firebaseUser, setFirebaseUser] = useState<any>(() => auth.currentUser);
+  const [profitToast, setProfitToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (user) => {
+      setFirebaseUser(user);
+    });
+    return () => unsub();
+  }, []);
+
   // Real-time Firestore listener for Referrals
   useEffect(() => {
-    if (!auth.currentUser) return;
+    if (!firebaseUser && !auth.currentUser) return;
     try {
       const unsubscribe = onSnapshot(collection(db, 'referrals'), (snapshot) => {
         const firestoreList: any[] = [];
@@ -505,30 +522,56 @@ export default function App() {
     } catch (err) {
       handleFirestoreError(err, OperationType.LIST, 'referrals');
     }
-  }, [currentUser]);
+  }, [firebaseUser, currentUser]);
 
-  // Dynamically calculate tenant profit from approved referrals
+  // Dynamically calculate tenant profit when referrals activate plans
   useEffect(() => {
-    const approved = referralApplications.filter(r => r.status === 'approved');
+    const isMainTenant = currentUser?.email?.toLowerCase().trim() === MAIN_TENANT_EMAIL;
+    const tenantTarget = currentUser?.email?.toLowerCase().trim() || MAIN_TENANT_EMAIL;
+
+    // Filter all referrals with activated plans belonging to this tenant
+    const activeReferrals = referralApplications.filter(r => {
+      const belongs = isMainTenant || (!r.tenantEmail || r.tenantEmail.toLowerCase().trim() === tenantTarget);
+      const isPlanActive = (r.isPlanActivated === true || r.status === 'approved') && r.status !== 'rejected' && r.status !== 'frozen';
+      return belongs && isPlanActive;
+    });
+
     let sub = 0;
     let user = 0;
-    approved.forEach(r => {
+    activeReferrals.forEach(r => {
       if (r.planType === 'tenant') sub += 299.99;
-      else user += 29.99;
+      else if (r.planType === 'user') user += 29.99;
     });
-    setTenantProfit({
+
+    const profitData = {
       sub,
       user,
       total: sub + user
-    });
-  }, [referralApplications]);
+    };
+
+    setTenantProfit(profitData);
+    localStorage.setItem('world_explorer_tenant_profit', JSON.stringify(profitData));
+
+    // Persist to Firestore if authenticated tenant
+    if (auth.currentUser && currentUser?.email) {
+      try {
+        setDoc(doc(db, 'users', auth.currentUser.uid), {
+          tenantProfit: profitData,
+          updatedAt: new Date().toISOString()
+        }, { merge: true }).catch(() => {});
+      } catch (err) {
+        console.warn('Profit sync note:', err);
+      }
+    }
+  }, [referralApplications, currentUser]);
 
   const updateReferralStatus = async (appId: string, status: 'approved' | 'rejected' | 'frozen') => {
-    setReferralApplications(prev => prev.map(a => a.id === appId ? { ...a, status } : a));
+    setReferralApplications(prev => prev.map(a => a.id === appId ? { ...a, status, isPlanActivated: status === 'approved' } : a));
     try {
       if (auth.currentUser) {
         await updateDoc(doc(db, 'referrals', appId), {
           status,
+          isPlanActivated: status === 'approved',
           updatedAt: new Date().toISOString()
         });
       }
@@ -556,7 +599,8 @@ export default function App() {
       email: `${candidate.name.toLowerCase()}.${candidate.surname.toLowerCase()}@example.com`,
       contact: `+27 ${Math.floor(600000000 + Math.random() * 399999999)}`,
       planType: candidate.planType,
-      status: 'pending',
+      status: 'approved',
+      isPlanActivated: true,
       date: new Date().toLocaleDateString('en-ZA', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
       selfie: `https://api.dicebear.com/7.x/avataaars/svg?seed=${candidate.name}`,
       idDoc: 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=600&auto=format&fit=crop&q=80',
@@ -574,7 +618,9 @@ export default function App() {
       handleFirestoreError(err, OperationType.CREATE, `referrals/${newRef.id}`);
     }
 
-    setActiveTab('referrals');
+    const profitAdded = newRef.planType === 'tenant' ? 'R299.99' : 'R29.99';
+    setProfitToast(`${newRef.name} activated ${newRef.planType === 'tenant' ? 'Tenant Plan' : 'User Plan'}! +${profitAdded}/mo credited to your balance.`);
+    setTimeout(() => setProfitToast(null), 4000);
   };
 
   const [viewingDoc, setViewingDoc] = useState<string | null>(null);
@@ -612,7 +658,8 @@ export default function App() {
     setSelectedSub(null);
     setIdFile(null);
     setPaymentFile(null);
-    setIsAuthOpen(false);
+    setAuthMode('signin');
+    setIsAuthOpen(true);
     stopCamera();
   };
 
@@ -707,7 +754,8 @@ export default function App() {
             email: currentUser.email.toLowerCase().trim(),
             contact: currentUser.contact || '+27 12 345 6789',
             planType: subToSave,
-            status: 'pending',
+            status: 'approved',
+            isPlanActivated: true,
             date: new Date().toLocaleDateString('en-ZA', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
             selfie: currentUser.selfieUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentUser.email}`,
             idDoc: idFile ? URL.createObjectURL(idFile) : 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=600&auto=format&fit=crop&q=80',
@@ -1064,44 +1112,6 @@ export default function App() {
           )}
         </MapContainer>
 
-        {/* Tenant Referral Banner for visitors */}
-        <AnimatePresence>
-          {referredByTenant && !isFullyActivated && activeTab === 'map' && (
-            <motion.div
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="absolute top-20 right-4 left-4 sm:left-auto sm:right-6 sm:w-96 z-[1001] bg-white/95 backdrop-blur-md border border-blue-200 p-3.5 rounded-2xl shadow-xl flex items-center justify-between gap-3 mt-safe"
-            >
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-8 h-8 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600 shrink-0">
-                  <Share2 className="w-4 h-4" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[9px] font-bold text-blue-600 uppercase tracking-wider">Tenant Referral</p>
-                  <p className="text-xs font-semibold text-slate-800 truncate">
-                    Invited by {referredByTenant}
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => {
-                  if (!currentUser) {
-                    setIsAuthOpen(true);
-                    setAuthMode('signup');
-                  } else {
-                    setStep('subscription');
-                    setIsActivated(true);
-                  }
-                }}
-                className="px-3 py-1.5 bg-blue-600 text-white rounded-xl text-[10px] font-bold uppercase tracking-wider hover:bg-blue-700 transition-colors shrink-0 shadow-sm"
-              >
-                Join Now
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
         {/* Navigation Overlay (GiGs feature) */}
         <AnimatePresence>
           {activeGig && activeTab === 'map' && (
@@ -1271,88 +1281,215 @@ export default function App() {
                   )}
                 </div>
                 
-                {activeTab === 'tenant' && (
-                  <div className="text-left space-y-8 w-full max-w-md mx-auto pt-6 relative">
-                    <div className="flex justify-end mb-4">
-                      <button 
-                        onClick={resetAccount}
-                        className="p-3 bg-red-50 text-red-600 rounded-2xl hover:bg-red-100 transition-colors shadow-sm flex items-center gap-2 font-bold text-[10px] uppercase tracking-widest"
-                      >
-                        <LogOut className="w-4 h-4" />
-                        Logout
-                      </button>
-                    </div>
-                    {/* Total Profit Card */}
-                    <div className="bg-black rounded-3xl p-8 text-white shadow-2xl relative overflow-hidden">
-                      <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl" />
-                      <p className="text-[10px] font-bold uppercase tracking-[0.3em] opacity-50 mb-1">Total Profit Balance</p>
-                      <h2 className="text-4xl font-bold tracking-tighter tabular-nums">R{tenantProfit.total.toFixed(2)}</h2>
-                      
-                      <button 
-                        onClick={() => setTenantProfit({ total: 0, sub: 0, user: 0 })}
-                        className="mt-6 text-[9px] font-bold uppercase tracking-widest bg-white/10 px-4 py-2 rounded-full hover:bg-white/20 transition-all"
-                      >
-                        Reset Balance
-                      </button>
-                    </div>
+                {activeTab === 'tenant' && (() => {
+                  const isMainTenant = currentUser?.email?.toLowerCase().trim() === MAIN_TENANT_EMAIL;
+                  const tenantTarget = currentUser?.email?.toLowerCase().trim() || MAIN_TENANT_EMAIL;
+                  const tenantActiveReferrals = referralApplications.filter(r => {
+                    const belongs = isMainTenant || (!r.tenantEmail || r.tenantEmail.toLowerCase().trim() === tenantTarget);
+                    const isPlanActive = (r.isPlanActivated === true || r.status === 'approved') && r.status !== 'rejected' && r.status !== 'frozen';
+                    return belongs && isPlanActive;
+                  });
+                  const tenantSubCount = tenantActiveReferrals.filter(r => r.planType === 'tenant').length;
+                  const userSubCount = tenantActiveReferrals.filter(r => r.planType === 'user').length;
 
-                    {/* Breakdown */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
-                        <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-1">Tenant Sub Profit</p>
-                        <p className="text-xl font-bold text-black tabular-nums">R{tenantProfit.sub.toFixed(2)}</p>
-                      </div>
-                      <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
-                        <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-1">User Sub Profit</p>
-                        <p className="text-xl font-bold text-black tabular-nums">R{tenantProfit.user.toFixed(2)}</p>
-                      </div>
-                    </div>
-
-                    {/* Share Link */}
-                    <div className="bg-blue-50 border border-blue-100 p-6 rounded-2xl relative group shadow-sm">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-2">
-                          <Share2 className="w-4 h-4 text-blue-600" />
-                          <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest">Tenant Referral Link</p>
+                  return (
+                    <div className="text-left space-y-6 w-full max-w-md mx-auto pt-2 relative">
+                      {/* Top Tenant Bar */}
+                      <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-9 h-9 rounded-full overflow-hidden border border-slate-200 bg-slate-100 shrink-0">
+                            <img 
+                              src={currentUser?.selfieUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${MAIN_TENANT_EMAIL}`} 
+                              alt="Tenant Avatar" 
+                              className="w-full h-full object-cover" 
+                            />
+                          </div>
+                          <div className="flex flex-col">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs font-bold text-black">{currentUser?.name ? `${currentUser.name} ${currentUser.surname || ''}` : 'Lucihano Elem'}</span>
+                              <span className="text-[8px] font-black uppercase px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">Tenant Partner</span>
+                            </div>
+                            <span className="text-[10px] text-slate-400 font-mono truncate">{currentUser?.email || MAIN_TENANT_EMAIL}</span>
+                          </div>
                         </div>
-                        <span className="text-[9px] font-bold bg-blue-200/60 text-blue-800 px-2 py-0.5 rounded-full">Directs to App</span>
-                      </div>
-                      
-                      <div className="flex items-center gap-2 bg-white border border-blue-200 rounded-xl p-2.5 shadow-sm">
-                        <input 
-                          readOnly 
-                          value={tenantInviteUrl} 
-                          className="grow text-xs font-mono text-blue-900 bg-transparent outline-none truncate select-all"
-                        />
                         <button 
-                          onClick={() => {
-                            navigator.clipboard.writeText(tenantInviteUrl);
-                            setCopiedInvite(true);
-                            setTimeout(() => setCopiedInvite(false), 2500);
-                          }}
-                          title="Copy referral link"
-                          className="bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-1.5 shrink-0 text-xs font-bold"
+                          onClick={resetAccount}
+                          className="px-3 py-1.5 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-colors shadow-sm flex items-center gap-1.5 font-bold text-[10px] uppercase tracking-wider"
                         >
-                          {copiedInvite ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                          <span className="text-[10px] uppercase tracking-wider">{copiedInvite ? 'Copied!' : 'Copy'}</span>
+                          <LogOut className="w-3.5 h-3.5" />
+                          Logout
                         </button>
                       </div>
 
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-4 pt-3 border-t border-blue-200/60">
-                        <p className="text-[9px] text-blue-700 font-medium">
-                          Referrals clicking this link are directed to the app and will show up in your Refs tab.
-                        </p>
-                        <button
-                          onClick={handleSimulateReferral}
-                          className="text-[9px] font-bold uppercase tracking-wider text-blue-700 bg-blue-100 hover:bg-blue-200 px-3 py-2 rounded-xl transition-colors flex items-center justify-center gap-1.5 shrink-0 shadow-sm"
-                        >
-                          <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-                          Simulate Referral
-                        </button>
+                      {/* Toast Notification for Plan Activation */}
+                      {profitToast && (
+                        <div className="bg-emerald-600 text-white p-3.5 rounded-2xl shadow-lg flex items-center justify-between gap-2 text-xs font-semibold animate-in fade-in slide-in-from-top-2 duration-300">
+                          <div className="flex items-center gap-2">
+                            <Sparkles className="w-4 h-4 text-emerald-200 shrink-0" />
+                            <span>{profitToast}</span>
+                          </div>
+                          <button onClick={() => setProfitToast(null)} className="text-emerald-200 hover:text-white">
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Total Profit Card */}
+                      <div className="bg-black rounded-3xl p-7 text-white shadow-2xl relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-36 h-36 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl" />
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-white/60">Total Profit Balance</p>
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full text-[9px] font-bold uppercase tracking-wider">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                            Recurring Monthly
+                          </span>
+                        </div>
+                        
+                        <div className="mt-3 flex items-baseline gap-1.5">
+                          <span className="text-4xl sm:text-5xl font-black tracking-tight tabular-nums">
+                            R{tenantProfit.total.toFixed(2)}
+                          </span>
+                          <span className="text-xs font-semibold text-white/50">/month</span>
+                        </div>
+
+                        <div className="mt-4 pt-4 border-t border-white/10 flex items-center justify-between text-xs">
+                          <span className="text-white/70 font-medium text-[11px]">
+                            {tenantActiveReferrals.length} active {tenantActiveReferrals.length === 1 ? 'referral subscriber' : 'referral subscribers'}
+                          </span>
+                          <button 
+                            onClick={() => setTenantProfit({ total: 0, sub: 0, user: 0 })}
+                            className="text-[9px] font-bold uppercase tracking-wider bg-white/10 px-3 py-1.5 rounded-full hover:bg-white/20 transition-all text-white/70 hover:text-white"
+                          >
+                            Reset Balance
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Profit Breakdown */}
+                      <div className="grid grid-cols-2 gap-3.5">
+                        <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 flex flex-col justify-between">
+                          <div>
+                            <div className="flex items-center justify-between mb-1">
+                              <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Tenant Sub Profit</p>
+                              <span className="text-[8px] font-black text-amber-700 bg-amber-100 px-1 py-0.5 rounded">+R299.99</span>
+                            </div>
+                            <p className="text-xl font-black text-black tabular-nums">R{tenantProfit.sub.toFixed(2)}</p>
+                          </div>
+                          <p className="text-[10px] text-slate-500 font-medium mt-2">{tenantSubCount} {tenantSubCount === 1 ? 'subscriber' : 'subscribers'} (R299.99/mo)</p>
+                        </div>
+
+                        <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 flex flex-col justify-between">
+                          <div>
+                            <div className="flex items-center justify-between mb-1">
+                              <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">User Sub Profit</p>
+                              <span className="text-[8px] font-black text-blue-700 bg-blue-100 px-1 py-0.5 rounded">+R29.99</span>
+                            </div>
+                            <p className="text-xl font-black text-black tabular-nums">R{tenantProfit.user.toFixed(2)}</p>
+                          </div>
+                          <p className="text-[10px] text-slate-500 font-medium mt-2">{userSubCount} {userSubCount === 1 ? 'subscriber' : 'subscribers'} (R29.99/mo)</p>
+                        </div>
+                      </div>
+
+                      {/* Share Link */}
+                      <div className="bg-blue-50 border border-blue-100 p-5 rounded-2xl relative shadow-sm space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Share2 className="w-4 h-4 text-blue-600" />
+                            <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest">Tenant Referral Link</p>
+                          </div>
+                          <span className="text-[8px] font-bold bg-blue-200/70 text-blue-800 px-2 py-0.5 rounded-full">Directs to App</span>
+                        </div>
+                        
+                        <div className="flex items-center gap-2 bg-white border border-blue-200 rounded-xl p-2 shadow-sm">
+                          <input 
+                            readOnly 
+                            value={tenantInviteUrl} 
+                            className="grow text-xs font-mono text-blue-900 bg-transparent outline-none truncate select-all px-1"
+                          />
+                          <button 
+                            onClick={() => {
+                              navigator.clipboard.writeText(tenantInviteUrl);
+                              setCopiedInvite(true);
+                              setTimeout(() => setCopiedInvite(false), 2500);
+                            }}
+                            title="Copy referral link"
+                            className="bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-1.5 shrink-0 text-xs font-bold"
+                          >
+                            {copiedInvite ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                            <span className="text-[10px] uppercase tracking-wider">{copiedInvite ? 'Copied!' : 'Copy'}</span>
+                          </button>
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-2 border-t border-blue-200/60">
+                          <p className="text-[9px] text-blue-700 font-medium leading-relaxed">
+                            Referrals clicking this link are directed to the app and will show up in your Refs tab.
+                          </p>
+                          <button
+                            onClick={handleSimulateReferral}
+                            className="text-[9px] font-bold uppercase tracking-wider text-blue-700 bg-blue-100 hover:bg-blue-200 px-3 py-1.5 rounded-xl transition-colors flex items-center justify-center gap-1.5 shrink-0 shadow-sm"
+                          >
+                            <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+                            Simulate Referral
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Active Profit Contributors Section */}
+                      <div className="space-y-3 pt-2">
+                        <div className="flex items-center justify-between px-1">
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">
+                            Active Profit Contributors ({tenantActiveReferrals.length})
+                          </p>
+                          <button 
+                            onClick={() => setActiveTab('referrals')}
+                            className="text-[10px] font-bold text-blue-600 hover:underline uppercase tracking-wider"
+                          >
+                            View in Refs →
+                          </button>
+                        </div>
+
+                        {tenantActiveReferrals.length > 0 ? (
+                          <div className="space-y-2.5">
+                            {tenantActiveReferrals.map((ref) => (
+                              <div key={ref.id} className="bg-slate-50 border border-slate-100 p-3.5 rounded-2xl flex items-center justify-between gap-3 shadow-sm hover:border-slate-200 transition-all">
+                                <div className="flex items-center gap-3 min-w-0">
+                                  <div className="w-10 h-10 rounded-full overflow-hidden border border-white shadow-sm bg-slate-200 shrink-0" onClick={() => setViewingDoc(ref.selfie)}>
+                                    <img src={ref.selfie} alt={ref.name} className="w-full h-full object-cover" />
+                                  </div>
+                                  <div className="flex flex-col min-w-0">
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <span className="text-xs font-bold text-black">{ref.name} {ref.surname}</span>
+                                      <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${ref.planType === 'tenant' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>
+                                        {ref.planType} Plan
+                                      </span>
+                                    </div>
+                                    <span className="text-[10px] text-slate-500 truncate font-mono">{ref.email || ref.contact}</span>
+                                  </div>
+                                </div>
+
+                                <div className="flex flex-col items-end shrink-0">
+                                  <span className="text-xs font-black text-emerald-600 font-mono tabular-nums">
+                                    +{ref.planType === 'tenant' ? 'R299.99' : 'R29.99'}/mo
+                                  </span>
+                                  <span className="text-[8px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-100/70 px-1.5 py-0.5 rounded mt-0.5">
+                                    Plan Activated
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="bg-slate-50 border border-dashed border-slate-200 p-6 rounded-2xl text-center space-y-2">
+                            <p className="text-xs font-bold text-slate-600">No active referral profit yet</p>
+                            <p className="text-[10px] text-slate-400 max-w-xs mx-auto">
+                              When referrals activate a subscription plan, their monthly profit (+R299.99/mo or +R29.99/mo) will appear here in real-time.
+                            </p>
+                          </div>
+                        )}
                       </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
 
                 {activeTab === 'referrals' && (
                   <div className="w-full max-w-2xl mx-auto pt-4 space-y-6">
@@ -1395,11 +1532,27 @@ export default function App() {
                                           <div className="flex items-center gap-2 flex-wrap">
                                             <span className="text-sm font-bold text-black">{app.name} {app.surname}</span>
                                             <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${app.planType === 'tenant' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>
-                                              {app.planType}
+                                              {app.planType} Plan
                                             </span>
+                                            {(app.isPlanActivated || app.status === 'approved') ? (
+                                              <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full inline-flex items-center gap-1 font-mono">
+                                                +{app.planType === 'tenant' ? 'R299.99' : 'R29.99'}/mo profit
+                                              </span>
+                                            ) : app.status === 'frozen' ? (
+                                              <span className="text-[8px] font-bold text-slate-500 bg-slate-200 px-2 py-0.5 rounded-full">
+                                                Profit Paused
+                                              </span>
+                                            ) : (
+                                              <span className="text-[8px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
+                                                Pending Plan Activation
+                                              </span>
+                                            )}
                                           </div>
                                           {app.email && (
-                                            <span className="text-[11px] text-slate-500 font-medium truncate">{app.email}</span>
+                                            <span className="text-[11px] text-slate-500 font-medium truncate font-mono">{app.email}</span>
+                                          )}
+                                          {app.contact && (
+                                            <span className="text-[10px] text-slate-400 font-medium font-mono">{app.contact}</span>
                                           )}
                                           <span className="text-[10px] text-slate-400 font-medium">Applied {app.date}</span>
                                         </div>
