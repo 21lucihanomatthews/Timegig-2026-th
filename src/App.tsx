@@ -1462,21 +1462,33 @@ export default function App() {
           </div>
         ) : isFullyActivated ? (
           <div className={`flex w-full ${selectedSub === 'tenant' ? 'justify-between' : 'justify-center gap-14'}`}>
-            {selectedSub === 'tenant' && (
+            {selectedSub === 'tenant' ? (
               <>
                 <TabButton icon={<Users />} label="Tenant" active={activeTab === 'tenant'} onClick={() => handleTabClick('tenant')} />
                 <TabButton icon={<Share2 />} label="Referrals" active={activeTab === 'referrals'} onClick={() => handleTabClick('referrals')} />
+                <TabButton icon={<Briefcase />} label="GiGs" active={activeTab === 'map'} onClick={() => setActiveTab('map')} />
+                <TabButton icon={<UserSearch />} label="Seekers" active={activeTab === 'seekers'} onClick={() => handleTabClick('seekers')} />
+                <TabButton 
+                  icon={<UserCircle />} 
+                  label="Profile" 
+                  active={activeTab === 'profile'} 
+                  onClick={() => handleTabClick('profile')} 
+                  image={currentUser?.selfieUrl}
+                />
+              </>
+            ) : (
+              <>
+                <TabButton icon={<UserSearch />} label="Seekers" active={activeTab === 'seekers'} onClick={() => handleTabClick('seekers')} />
+                <TabButton icon={<Briefcase />} label="GiGs" active={activeTab === 'map'} onClick={() => setActiveTab('map')} />
+                <TabButton 
+                  icon={<UserCircle />} 
+                  label="Profile" 
+                  active={activeTab === 'profile'} 
+                  onClick={() => handleTabClick('profile')} 
+                  image={currentUser?.selfieUrl}
+                />
               </>
             )}
-            <TabButton icon={<Briefcase />} label="GiGs" active={activeTab === 'map'} onClick={() => setActiveTab('map')} />
-            <TabButton icon={<UserSearch />} label="Seekers" active={activeTab === 'seekers'} onClick={() => handleTabClick('seekers')} />
-            <TabButton 
-              icon={<UserCircle />} 
-              label="Profile" 
-              active={activeTab === 'profile'} 
-              onClick={() => handleTabClick('profile')} 
-              image={currentUser?.selfieUrl}
-            />
           </div>
         ) : (
           <div className="flex items-center justify-center w-full">
