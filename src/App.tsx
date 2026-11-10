@@ -3,8 +3,9 @@ import { MapContainer, TileLayer, Marker, Popup, useMap, Circle, Polyline } from
 import L from 'leaflet';
 import { Search, Satellite, Map as MapIcon, Zap, Plus, Minus, Navigation, Camera, FileUp, Receipt, CheckCircle2, Loader2, X, Users, Briefcase, UserSearch, UserCircle, Smartphone, LogIn, LogOut, UserPlus, Share2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { auth, googleProvider } from './firebase';
-import { signInWithPopup } from 'firebase/auth';
+import { auth, googleProvider, db } from './firebase';
+import { signInWithPopup, signOut } from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 // Fix for default marker icons
 const iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-black"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>`;
@@ -287,6 +288,28 @@ type OnboardingStep = 'subscription' | 'selfie' | 'id_upload' | 'payment_upload'
 type TabType = 'map' | 'tenant' | 'referrals' | 'gigs' | 'seekers' | 'profile';
 type AuthMode = 'signin' | 'signup' | 'congrats' | 'welcome';
 
+const MAIN_TENANT_EMAIL = 'lucihanoelem@gmail.com';
+
+const getLocalActivatedUsers = (): Record<string, { selectedSub: 'tenant' | 'user'; isFullyActivated: boolean }> => {
+  try {
+    const raw = localStorage.getItem('world_explorer_activated_users');
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+};
+
+const saveLocalActivatedUser = (email: string, selectedSub: 'tenant' | 'user') => {
+  if (!email) return;
+  try {
+    const map = getLocalActivatedUsers();
+    map[email.toLowerCase().trim()] = { selectedSub, isFullyActivated: true };
+    localStorage.setItem('world_explorer_activated_users', JSON.stringify(map));
+  } catch (e) {
+    console.error('Error saving local activated user:', e);
+  }
+};
+
 export default function App() {
   const [viewMode, setViewMode] = useState<'street' | 'satellite'>('street');
   const [isAuthOpen, setIsAuthOpen] = useState(false);
@@ -299,12 +322,34 @@ export default function App() {
     contact?: string;
     selfieUrl?: string;
   } | null>(() => {
-    const saved = localStorage.getItem('world_explorer_user');
-    return saved ? JSON.parse(saved) : null;
+    try {
+      const saved = localStorage.getItem('world_explorer_user');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed?.email?.toLowerCase() === 'timegig2026@gmail.com') {
+          localStorage.removeItem('world_explorer_user');
+          localStorage.removeItem('world_explorer_selected_sub');
+          localStorage.removeItem('world_explorer_fully_activated');
+          return null;
+        }
+        return parsed;
+      }
+    } catch {}
+    return null;
   });
   
   const [isActivated, setIsActivated] = useState(false);
   const [isFullyActivated, setIsFullyActivated] = useState(() => {
+    try {
+      const savedUser = localStorage.getItem('world_explorer_user');
+      if (savedUser) {
+        const parsed = JSON.parse(savedUser);
+        const email = parsed?.email?.toLowerCase()?.trim();
+        if (email === MAIN_TENANT_EMAIL) return true;
+        const activatedMap = getLocalActivatedUsers();
+        if (email && activatedMap[email]?.isFullyActivated) return true;
+      }
+    } catch {}
     return localStorage.getItem('world_explorer_fully_activated') === 'true';
   });
   const [referralSearch, setReferralSearch] = useState('');
@@ -313,6 +358,15 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<TabType>('map');
   const [step, setStep] = useState<OnboardingStep>('subscription');
   const [selectedSub, setSelectedSub] = useState<'tenant' | 'user' | null>(() => {
+    const savedUser = localStorage.getItem('world_explorer_user');
+    if (savedUser) {
+      try {
+        const parsed = JSON.parse(savedUser);
+        if (parsed?.email?.toLowerCase()?.trim() === MAIN_TENANT_EMAIL) {
+          return 'tenant';
+        }
+      } catch {}
+    }
     return localStorage.getItem('world_explorer_selected_sub') as ('tenant' | 'user' | null) || null;
   });
   const [cameraError, setCameraError] = useState<string | null>(null);
@@ -321,9 +375,11 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    if (currentUser?.email === 'timegig2026@gmail.com') {
+    const email = currentUser?.email?.toLowerCase()?.trim();
+    if (email === MAIN_TENANT_EMAIL) {
       setSelectedSub('tenant');
       setIsFullyActivated(true);
+      saveLocalActivatedUser(MAIN_TENANT_EMAIL, 'tenant');
     }
   }, [currentUser]);
 
@@ -377,8 +433,15 @@ export default function App() {
     localStorage.setItem('world_explorer_fully_activated', isFullyActivated.toString());
   }, [isFullyActivated]);
 
-  const resetAccount = () => {
-    localStorage.clear();
+  const resetAccount = async () => {
+    try {
+      await signOut(auth);
+    } catch (e) {
+      console.warn("Sign out error:", e);
+    }
+    localStorage.removeItem('world_explorer_user');
+    localStorage.removeItem('world_explorer_selected_sub');
+    localStorage.removeItem('world_explorer_fully_activated');
     setCurrentUser(null);
     setIsFullyActivated(false);
     setIsActivated(false);
@@ -463,11 +526,31 @@ export default function App() {
     else if (step === 'id_upload') setStep('payment_upload');
     else if (step === 'payment_upload') {
       setStep('submitting');
-      setTimeout(() => {
+      setTimeout(async () => {
         setStep('reviewing');
-        setIsFullyActivated(true); // Now User Sub also activates these features
-        if (currentUser) {
-          setCurrentUser({ ...currentUser, isRegistered: true });
+        setIsFullyActivated(true);
+        const subToSave = selectedSub || 'user';
+        if (currentUser?.email) {
+          saveLocalActivatedUser(currentUser.email, subToSave);
+          setCurrentUser(prev => prev ? { ...prev, isRegistered: true } : null);
+          
+          if (auth.currentUser) {
+            try {
+              await setDoc(doc(db, 'users', auth.currentUser.uid), {
+                email: currentUser.email.toLowerCase().trim(),
+                name: currentUser.name || '',
+                surname: currentUser.surname || '',
+                contact: currentUser.contact || '',
+                selfieUrl: currentUser.selfieUrl || '',
+                selectedSub: subToSave,
+                isFullyActivated: true,
+                role: subToSave === 'tenant' ? 'tenant' : 'user',
+                updatedAt: new Date().toISOString()
+              }, { merge: true });
+            } catch (err) {
+              console.warn('Firestore update error:', err);
+            }
+          }
         }
       }, 2000);
     }
@@ -478,32 +561,117 @@ export default function App() {
     try {
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
-      const email = user.email || '';
-      const isMainTenant = email === 'timegig2026@gmail.com' || email === 'lucihanoelem@gmail.com';
-      
-      if (isMainTenant) {
-        setSelectedSub('tenant');
-        setIsFullyActivated(true);
-      } else {
-        setIsFullyActivated(true);
+      const email = (user.email || '').toLowerCase().trim();
+      const isMainTenant = email === MAIN_TENANT_EMAIL;
+
+      // Keep track of registered emails
+      const registeredEmails: string[] = JSON.parse(
+        localStorage.getItem('world_explorer_registered_emails') || `["test@test.com", "${MAIN_TENANT_EMAIL}"]`
+      );
+      if (!registeredEmails.map(e => e.toLowerCase()).includes(email)) {
+        registeredEmails.push(email);
+        localStorage.setItem('world_explorer_registered_emails', JSON.stringify(registeredEmails));
       }
 
       const nameParts = (user.displayName || 'User').split(' ');
-      const name = nameParts[0] || 'User';
-      const surname = nameParts.slice(1).join(' ') || '';
-      
-      setCurrentUser({
+      const name = isMainTenant ? (nameParts[0] || 'Lucihano') : (nameParts[0] || 'User');
+      const surname = isMainTenant ? (nameParts.slice(1).join(' ') || 'Elem') : (nameParts.slice(1).join(' ') || '');
+      const contact = user.phoneNumber || '+27 12 345 6789';
+      const selfieUrl = user.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${email}`;
+
+      if (isMainTenant) {
+        setSelectedSub('tenant');
+        setIsFullyActivated(true);
+        saveLocalActivatedUser(email, 'tenant');
+
+        try {
+          await setDoc(doc(db, 'users', user.uid), {
+            email,
+            name,
+            surname,
+            contact,
+            selfieUrl,
+            role: 'tenant',
+            selectedSub: 'tenant',
+            isFullyActivated: true,
+            updatedAt: new Date().toISOString()
+          }, { merge: true });
+        } catch (err) {
+          console.warn('Firestore sync note:', err);
+        }
+
+        setCurrentUser({
+          email,
+          isRegistered: true,
+          name,
+          surname,
+          contact,
+          selfieUrl
+        });
+
+        setAuthMode('welcome');
+        setTimeout(() => {
+          setIsAuthOpen(false);
+        }, 1500);
+        return;
+      }
+
+      // Non-main tenant Google sign-in:
+      // Must check if user is already activated
+      let userSub: 'tenant' | 'user' | null = null;
+      let activated = false;
+
+      // 1. Check Firestore
+      try {
+        const userDocRef = doc(db, 'users', user.uid);
+        const userSnap = await getDoc(userDocRef);
+        if (userSnap.exists()) {
+          const data = userSnap.data();
+          if (data?.isFullyActivated === true) {
+            activated = true;
+            userSub = (data?.selectedSub as 'tenant' | 'user') || 'user';
+          }
+        }
+      } catch (err) {
+        console.warn('Firestore lookup warning:', err);
+      }
+
+      // 2. Check local activated users cache
+      if (!activated) {
+        const localMap = getLocalActivatedUsers();
+        if (localMap[email]?.isFullyActivated) {
+          activated = true;
+          userSub = localMap[email].selectedSub;
+        }
+      }
+
+      const userData = {
         email,
         isRegistered: true,
         name,
         surname,
-        contact: user.phoneNumber || '+27 12 345 6789',
-        selfieUrl: user.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${email}`
-      });
-      setAuthMode('welcome');
-      setTimeout(() => {
+        contact,
+        selfieUrl
+      };
+
+      if (activated && userSub) {
+        // User IS activated -> Welcome them back!
+        setSelectedSub(userSub);
+        setIsFullyActivated(true);
+        setCurrentUser(userData);
+        setAuthMode('welcome');
+        setTimeout(() => {
+          setIsAuthOpen(false);
+        }, 1500);
+      } else {
+        // User is NOT activated -> Do NOT welcome them back! Direct them to activate a plan.
+        setSelectedSub(null);
+        setIsFullyActivated(false);
+        setCurrentUser(userData);
         setIsAuthOpen(false);
-      }, 1500);
+        setIsActivated(true);
+        setStep('subscription');
+      }
     } catch (error) {
       console.error("Firebase auth error:", error);
       alert("Google Sign-In failed. Please try again.");
@@ -515,19 +683,21 @@ export default function App() {
   const handleAuth = (e: React.FormEvent) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget as HTMLFormElement);
-    const email = formData.get('email') as string;
-    const name = formData.get('name') as string || 'John';
-    const surname = formData.get('surname') as string || 'Doe';
-    const contact = formData.get('contact') as string || '+27 12 345 6789';
+    const email = ((formData.get('email') as string) || '').toLowerCase().trim();
+    const name = (formData.get('name') as string) || 'User';
+    const surname = (formData.get('surname') as string) || '';
+    const contact = (formData.get('contact') as string) || '+27 12 345 6789';
 
     setIsLoading(true);
     setTimeout(() => {
       setIsLoading(false);
       
-      const registeredEmails = JSON.parse(localStorage.getItem('world_explorer_registered_emails') || '["test@test.com", "timegig2026@gmail.com"]');
+      const registeredEmails: string[] = JSON.parse(
+        localStorage.getItem('world_explorer_registered_emails') || `["test@test.com", "${MAIN_TENANT_EMAIL}"]`
+      );
 
       if (authMode === 'signup') {
-        if (registeredEmails.includes(email)) {
+        if (registeredEmails.map(e => e.toLowerCase()).includes(email)) {
           alert('Account already exists with this email. Please sign in.');
           setAuthMode('signin');
           return;
@@ -542,34 +712,64 @@ export default function App() {
         setTimeout(() => {
           setIsAuthOpen(false);
           setIsActivated(true);
+          setStep('subscription');
         }, 2000);
       } else {
         // Sign In
-        const isMainTenant = email === 'timegig2026@gmail.com';
-        const isTestUser = email === 'test@test.com' || registeredEmails.includes(email);
+        const isMainTenant = email === MAIN_TENANT_EMAIL;
+        const localMap = getLocalActivatedUsers();
+        const isLocallyActivated = localMap[email]?.isFullyActivated;
         const mockSelfie = `https://api.dicebear.com/7.x/avataaars/svg?seed=${email}`;
-        
+
         if (isMainTenant) {
           setSelectedSub('tenant');
           setIsFullyActivated(true);
-        } else if (isTestUser) {
+          saveLocalActivatedUser(MAIN_TENANT_EMAIL, 'tenant');
+          setCurrentUser({ 
+            email, 
+            isRegistered: true, 
+            name: 'Lucihano', 
+            surname: 'Elem', 
+            contact, 
+            selfieUrl: mockSelfie 
+          });
+          setAuthMode('welcome');
+          setTimeout(() => {
+            setIsAuthOpen(false);
+          }, 1500);
+        } else if (isLocallyActivated) {
+          setSelectedSub(localMap[email].selectedSub);
           setIsFullyActivated(true);
-        }
-
-        setCurrentUser({ 
-          email, 
-          isRegistered: true, 
-          name: isMainTenant ? 'TimeGig' : name, 
-          surname: isMainTenant ? 'Tenant' : surname, 
-          contact, 
-          selfieUrl: mockSelfie 
-        });
-        setAuthMode('welcome');
-        setTimeout(() => {
+          setCurrentUser({ 
+            email, 
+            isRegistered: true, 
+            name, 
+            surname, 
+            contact, 
+            selfieUrl: mockSelfie 
+          });
+          setAuthMode('welcome');
+          setTimeout(() => {
+            setIsAuthOpen(false);
+          }, 1500);
+        } else {
+          // Unactivated
+          setSelectedSub(null);
+          setIsFullyActivated(false);
+          setCurrentUser({ 
+            email, 
+            isRegistered: true, 
+            name, 
+            surname, 
+            contact, 
+            selfieUrl: mockSelfie 
+          });
           setIsAuthOpen(false);
-        }, 2000);
+          setIsActivated(true);
+          setStep('subscription');
+        }
       }
-    }, 1500);
+    }, 1200);
   };
 
   const handleTabClick = (tab: TabType) => {
@@ -1208,28 +1408,43 @@ export default function App() {
                     </div>
 
                     <form onSubmit={handleAuth} className="space-y-2.5">
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <label className="block text-[8px] font-bold uppercase tracking-widest text-slate-400 mb-0.5 ml-1">Name</label>
-                          <input 
-                            name="name"
-                            type="text" 
-                            required 
-                            className="w-full h-9 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-black transition-all"
-                            placeholder="John"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[8px] font-bold uppercase tracking-widest text-slate-400 mb-0.5 ml-1">Surname</label>
-                          <input 
-                            name="surname"
-                            type="text" 
-                            required 
-                            className="w-full h-9 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-black transition-all"
-                            placeholder="Doe"
-                          />
-                        </div>
-                      </div>
+                      {authMode === 'signup' && (
+                        <>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="block text-[8px] font-bold uppercase tracking-widest text-slate-400 mb-0.5 ml-1">Name</label>
+                              <input 
+                                name="name"
+                                type="text" 
+                                required 
+                                className="w-full h-9 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-black transition-all"
+                                placeholder="John"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[8px] font-bold uppercase tracking-widest text-slate-400 mb-0.5 ml-1">Surname</label>
+                              <input 
+                                name="surname"
+                                type="text" 
+                                required 
+                                className="w-full h-9 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-black transition-all"
+                                placeholder="Doe"
+                              />
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-[8px] font-bold uppercase tracking-widest text-slate-400 mb-0.5 ml-1">Contact Number</label>
+                            <input 
+                              name="contact"
+                              type="tel" 
+                              required 
+                              className="w-full h-9 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-black transition-all"
+                              placeholder="+27 12 345 6789"
+                            />
+                          </div>
+                        </>
+                      )}
                       
                       <div>
                         <label className="block text-[8px] font-bold uppercase tracking-widest text-slate-400 mb-0.5 ml-1">Email Address</label>
@@ -1239,17 +1454,6 @@ export default function App() {
                           required 
                           className="w-full h-9 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-black transition-all"
                           placeholder="name@example.com"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-[8px] font-bold uppercase tracking-widest text-slate-400 mb-0.5 ml-1">Contact Number</label>
-                        <input 
-                          name="contact"
-                          type="tel" 
-                          required 
-                          className="w-full h-9 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-black transition-all"
-                          placeholder="+27 12 345 6789"
                         />
                       </div>
 
