@@ -1,11 +1,11 @@
 import { useEffect, useState, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap, Circle, Polyline } from 'react-leaflet';
 import L from 'leaflet';
-import { Search, Satellite, Map as MapIcon, Zap, Plus, Minus, Navigation, Camera, FileUp, Receipt, CheckCircle2, Loader2, X, Users, Briefcase, UserSearch, UserCircle, Smartphone, LogIn, LogOut, UserPlus, Share2 } from 'lucide-react';
+import { Search, Satellite, Map as MapIcon, Zap, Plus, Minus, Navigation, Camera, FileUp, Receipt, CheckCircle2, Loader2, X, Users, Briefcase, UserSearch, UserCircle, Smartphone, LogIn, LogOut, UserPlus, Share2, Copy, Check, Sparkles, ExternalLink } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { auth, googleProvider, db } from './firebase';
 import { signInWithPopup, signOut } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, onSnapshot, updateDoc } from 'firebase/firestore';
 
 // Fix for default marker icons
 const iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-black"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>`;
@@ -310,6 +310,52 @@ const saveLocalActivatedUser = (email: string, selectedSub: 'tenant' | 'user') =
   }
 };
 
+enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId?: string | null;
+    email?: string | null;
+    emailVerified?: boolean | null;
+    isAnonymous?: boolean | null;
+    tenantId?: string | null;
+    providerInfo?: {
+      providerId?: string | null;
+      email?: string | null;
+    }[];
+  };
+}
+
+function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+      emailVerified: auth.currentUser?.emailVerified,
+      isAnonymous: auth.currentUser?.isAnonymous,
+      tenantId: auth.currentUser?.tenantId,
+      providerInfo: auth.currentUser?.providerData?.map(provider => ({
+        providerId: provider.providerId,
+        email: provider.email,
+      })) || []
+    },
+    operationType,
+    path
+  };
+  console.warn('Firestore Error: ', JSON.stringify(errInfo));
+}
+
 export default function App() {
   const [viewMode, setViewMode] = useState<'street' | 'satellite'>('street');
   const [isAuthOpen, setIsAuthOpen] = useState(false);
@@ -352,6 +398,26 @@ export default function App() {
     } catch {}
     return localStorage.getItem('world_explorer_fully_activated') === 'true';
   });
+  const [copiedInvite, setCopiedInvite] = useState(false);
+  const [referredByTenant, setReferredByTenant] = useState<string | null>(() => {
+    try {
+      const searchParams = new URLSearchParams(window.location.search);
+      const ref = searchParams.get('ref');
+      if (ref) {
+        const decoded = decodeURIComponent(ref).toLowerCase().trim();
+        localStorage.setItem('world_explorer_tenant_ref', decoded);
+        return decoded;
+      }
+      return localStorage.getItem('world_explorer_tenant_ref');
+    } catch {
+      return null;
+    }
+  });
+
+  const tenantInviteUrl = typeof window !== 'undefined'
+    ? `${window.location.origin}${window.location.pathname}?ref=${encodeURIComponent(currentUser?.email?.toLowerCase().trim() || MAIN_TENANT_EMAIL)}`
+    : `https://worldexplorer.app/?ref=${MAIN_TENANT_EMAIL}`;
+
   const [referralSearch, setReferralSearch] = useState('');
   const [seekerSearch, setSeekerSearch] = useState('');
   const [tenantProfit, setTenantProfit] = useState({ total: 0, sub: 0, user: 0 });
@@ -414,6 +480,102 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('world_explorer_referrals', JSON.stringify(referralApplications));
   }, [referralApplications]);
+
+  // Real-time Firestore listener for Referrals
+  useEffect(() => {
+    if (!auth.currentUser) return;
+    try {
+      const unsubscribe = onSnapshot(collection(db, 'referrals'), (snapshot) => {
+        const firestoreList: any[] = [];
+        snapshot.forEach((docSnap) => {
+          firestoreList.push({ id: docSnap.id, ...docSnap.data() });
+        });
+        if (firestoreList.length > 0) {
+          setReferralApplications(prev => {
+            const map = new Map<string, any>();
+            prev.forEach(p => map.set(p.id, p));
+            firestoreList.forEach(item => map.set(item.id, item));
+            return Array.from(map.values());
+          });
+        }
+      }, (err) => {
+        handleFirestoreError(err, OperationType.LIST, 'referrals');
+      });
+      return () => unsubscribe();
+    } catch (err) {
+      handleFirestoreError(err, OperationType.LIST, 'referrals');
+    }
+  }, [currentUser]);
+
+  // Dynamically calculate tenant profit from approved referrals
+  useEffect(() => {
+    const approved = referralApplications.filter(r => r.status === 'approved');
+    let sub = 0;
+    let user = 0;
+    approved.forEach(r => {
+      if (r.planType === 'tenant') sub += 299.99;
+      else user += 29.99;
+    });
+    setTenantProfit({
+      sub,
+      user,
+      total: sub + user
+    });
+  }, [referralApplications]);
+
+  const updateReferralStatus = async (appId: string, status: 'approved' | 'rejected' | 'frozen') => {
+    setReferralApplications(prev => prev.map(a => a.id === appId ? { ...a, status } : a));
+    try {
+      if (auth.currentUser) {
+        await updateDoc(doc(db, 'referrals', appId), {
+          status,
+          updatedAt: new Date().toISOString()
+        });
+      }
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, `referrals/${appId}`);
+    }
+  };
+
+  const handleSimulateReferral = async () => {
+    const tenantTarget = currentUser?.email?.toLowerCase().trim() || MAIN_TENANT_EMAIL;
+    const mockCandidates = [
+      { name: 'Sipho', surname: 'Dlamini', planType: 'user' as const },
+      { name: 'Nandi', surname: 'Zulu', planType: 'tenant' as const },
+      { name: 'Kagiso', surname: 'Mokoena', planType: 'user' as const },
+      { name: 'Thabo', surname: 'Ndlovu', planType: 'user' as const },
+      { name: 'Lerato', surname: 'Khumalo', planType: 'tenant' as const },
+    ];
+    const candidate = mockCandidates[Math.floor(Math.random() * mockCandidates.length)];
+    const randomId = Math.random().toString(36).substring(2, 8);
+    const newRef = {
+      id: `ref_${Date.now()}_${randomId}`,
+      tenantEmail: tenantTarget,
+      name: candidate.name,
+      surname: candidate.surname,
+      email: `${candidate.name.toLowerCase()}.${candidate.surname.toLowerCase()}@example.com`,
+      contact: `+27 ${Math.floor(600000000 + Math.random() * 399999999)}`,
+      planType: candidate.planType,
+      status: 'pending',
+      date: new Date().toLocaleDateString('en-ZA', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+      selfie: `https://api.dicebear.com/7.x/avataaars/svg?seed=${candidate.name}`,
+      idDoc: 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=600&auto=format&fit=crop&q=80',
+      payment: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=600&auto=format&fit=crop&q=80',
+      createdAt: new Date().toISOString()
+    };
+
+    setReferralApplications(prev => [newRef, ...prev.filter(r => r.id !== newRef.id)]);
+
+    try {
+      if (auth.currentUser) {
+        await setDoc(doc(db, 'referrals', newRef.id), newRef);
+      }
+    } catch (err) {
+      handleFirestoreError(err, OperationType.CREATE, `referrals/${newRef.id}`);
+    }
+
+    setActiveTab('referrals');
+  };
 
   const [viewingDoc, setViewingDoc] = useState<string | null>(null);
   
@@ -534,6 +696,27 @@ export default function App() {
           saveLocalActivatedUser(currentUser.email, subToSave);
           setCurrentUser(prev => prev ? { ...prev, isRegistered: true } : null);
           
+          const refTenant = (referredByTenant || localStorage.getItem('world_explorer_tenant_ref') || MAIN_TENANT_EMAIL).toLowerCase().trim();
+          
+          // Create Referral Application record linked to the tenant
+          const newRefRecord = {
+            id: `ref_${Date.now()}`,
+            tenantEmail: refTenant,
+            name: currentUser.name || 'User',
+            surname: currentUser.surname || '',
+            email: currentUser.email.toLowerCase().trim(),
+            contact: currentUser.contact || '+27 12 345 6789',
+            planType: subToSave,
+            status: 'pending',
+            date: new Date().toLocaleDateString('en-ZA', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+            selfie: currentUser.selfieUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentUser.email}`,
+            idDoc: idFile ? URL.createObjectURL(idFile) : 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=600&auto=format&fit=crop&q=80',
+            payment: paymentFile ? URL.createObjectURL(paymentFile) : 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=600&auto=format&fit=crop&q=80',
+            createdAt: new Date().toISOString()
+          };
+
+          setReferralApplications(prev => [newRefRecord, ...prev.filter(r => r.email !== newRefRecord.email)]);
+          
           if (auth.currentUser) {
             try {
               await setDoc(doc(db, 'users', auth.currentUser.uid), {
@@ -545,10 +728,13 @@ export default function App() {
                 selectedSub: subToSave,
                 isFullyActivated: true,
                 role: subToSave === 'tenant' ? 'tenant' : 'user',
+                referredBy: refTenant,
                 updatedAt: new Date().toISOString()
               }, { merge: true });
+
+              await setDoc(doc(db, 'referrals', newRefRecord.id), newRefRecord);
             } catch (err) {
-              console.warn('Firestore update error:', err);
+              handleFirestoreError(err, OperationType.WRITE, `referrals/${newRefRecord.id}`);
             }
           }
         }
@@ -878,6 +1064,44 @@ export default function App() {
           )}
         </MapContainer>
 
+        {/* Tenant Referral Banner for visitors */}
+        <AnimatePresence>
+          {referredByTenant && !isFullyActivated && activeTab === 'map' && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="absolute top-20 right-4 left-4 sm:left-auto sm:right-6 sm:w-96 z-[1001] bg-white/95 backdrop-blur-md border border-blue-200 p-3.5 rounded-2xl shadow-xl flex items-center justify-between gap-3 mt-safe"
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600 shrink-0">
+                  <Share2 className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[9px] font-bold text-blue-600 uppercase tracking-wider">Tenant Referral</p>
+                  <p className="text-xs font-semibold text-slate-800 truncate">
+                    Invited by {referredByTenant}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  if (!currentUser) {
+                    setIsAuthOpen(true);
+                    setAuthMode('signup');
+                  } else {
+                    setStep('subscription');
+                    setIsActivated(true);
+                  }
+                }}
+                className="px-3 py-1.5 bg-blue-600 text-white rounded-xl text-[10px] font-bold uppercase tracking-wider hover:bg-blue-700 transition-colors shrink-0 shadow-sm"
+              >
+                Join Now
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Navigation Overlay (GiGs feature) */}
         <AnimatePresence>
           {activeGig && activeTab === 'map' && (
@@ -1085,25 +1309,47 @@ export default function App() {
                     </div>
 
                     {/* Share Link */}
-                    <div className="bg-blue-50 border border-blue-100 p-6 rounded-2xl relative group">
-                      <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-3">Invite & Build Network</p>
-                      <div className="flex items-center gap-3 bg-white border border-blue-200 rounded-xl p-3">
+                    <div className="bg-blue-50 border border-blue-100 p-6 rounded-2xl relative group shadow-sm">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <Share2 className="w-4 h-4 text-blue-600" />
+                          <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest">Tenant Referral Link</p>
+                        </div>
+                        <span className="text-[9px] font-bold bg-blue-200/60 text-blue-800 px-2 py-0.5 rounded-full">Directs to App</span>
+                      </div>
+                      
+                      <div className="flex items-center gap-2 bg-white border border-blue-200 rounded-xl p-2.5 shadow-sm">
                         <input 
                           readOnly 
-                          value={`https://worldexplorer.app/invite/${currentUser?.name?.toLowerCase() || 'user'}${currentUser?.surname?.toLowerCase() || ''}`} 
-                          className="grow text-xs font-mono text-blue-800 bg-transparent outline-none truncate"
+                          value={tenantInviteUrl} 
+                          className="grow text-xs font-mono text-blue-900 bg-transparent outline-none truncate select-all"
                         />
                         <button 
                           onClick={() => {
-                            navigator.clipboard.writeText(`https://worldexplorer.app/invite/${currentUser?.name?.toLowerCase() || 'user'}${currentUser?.surname?.toLowerCase() || ''}`);
-                            alert('Invitation link copied!');
+                            navigator.clipboard.writeText(tenantInviteUrl);
+                            setCopiedInvite(true);
+                            setTimeout(() => setCopiedInvite(false), 2500);
                           }}
-                          className="bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 transition-colors"
+                          title="Copy referral link"
+                          className="bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-1.5 shrink-0 text-xs font-bold"
                         >
-                          <Share2 className="w-4 h-4" />
+                          {copiedInvite ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                          <span className="text-[10px] uppercase tracking-wider">{copiedInvite ? 'Copied!' : 'Copy'}</span>
                         </button>
                       </div>
-                      <p className="text-[9px] text-blue-400 mt-3 font-medium">Earn a passive monthly income from user subscriptions in your network.</p>
+
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-4 pt-3 border-t border-blue-200/60">
+                        <p className="text-[9px] text-blue-700 font-medium">
+                          Referrals clicking this link are directed to the app and will show up in your Refs tab.
+                        </p>
+                        <button
+                          onClick={handleSimulateReferral}
+                          className="text-[9px] font-bold uppercase tracking-wider text-blue-700 bg-blue-100 hover:bg-blue-200 px-3 py-2 rounded-xl transition-colors flex items-center justify-center gap-1.5 shrink-0 shadow-sm"
+                        >
+                          <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+                          Simulate Referral
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -1112,50 +1358,64 @@ export default function App() {
                   <div className="w-full max-w-2xl mx-auto pt-4 space-y-6">
                     <div className="space-y-6">
                       {['pending', 'approved', 'frozen'].map((sectionStatus) => {
-                        const filteredReferrals = referralApplications.filter(app => 
-                          `${app.name} ${app.surname}`.toLowerCase().includes(referralSearch.toLowerCase())
-                        );
-                        const apps = filteredReferrals.filter(app => app.status === sectionStatus);
+                        const isMainTenant = currentUser?.email?.toLowerCase().trim() === MAIN_TENANT_EMAIL;
+                        const tenantReferrals = referralApplications.filter(app => {
+                          const matchesSearch = `${app.name} ${app.surname}`.toLowerCase().includes(referralSearch.toLowerCase()) ||
+                            (app.email && app.email.toLowerCase().includes(referralSearch.toLowerCase()));
+                          if (!matchesSearch) return false;
+                          if (isMainTenant) return true;
+                          return !app.tenantEmail || app.tenantEmail.toLowerCase().trim() === currentUser?.email?.toLowerCase().trim();
+                        });
+
+                        const apps = tenantReferrals.filter(app => app.status === sectionStatus);
                         if (apps.length === 0 && sectionStatus !== 'pending') return null;
 
                         return (
                           <div key={sectionStatus} className="space-y-4">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] ml-2">
-                              {sectionStatus === 'pending' ? 'Pending Applications' : 
-                               sectionStatus === 'approved' ? 'Active Network' : 'Frozen Accounts'}
-                            </p>
+                            <div className="flex items-center justify-between ml-2">
+                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">
+                                {sectionStatus === 'pending' ? 'Pending Applications' : 
+                                 sectionStatus === 'approved' ? 'Active Network' : 'Frozen Accounts'}
+                              </p>
+                              <span className="text-[9px] font-bold text-slate-400 tabular-nums">
+                                {apps.length}
+                              </span>
+                            </div>
                             
                             <div className="grid gap-4">
                               {apps.length > 0 ? (
                                 apps.map(app => (
                                   <div key={app.id} className="bg-slate-50 border border-slate-100 p-6 rounded-3xl shadow-sm space-y-6">
-                                    <div className="flex items-start justify-between">
-                                      <div className="flex items-center gap-4">
-                                        <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white shadow-md cursor-pointer bg-slate-200" onClick={() => setViewingDoc(app.selfie)}>
+                                    <div className="flex items-start justify-between gap-4">
+                                      <div className="flex items-center gap-4 min-w-0">
+                                        <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white shadow-md cursor-pointer bg-slate-200 shrink-0" onClick={() => setViewingDoc(app.selfie)}>
                                           <img src={app.selfie} className="w-full h-full object-cover" alt="Selfie" />
                                         </div>
-                                        <div className="flex flex-col">
-                                          <div className="flex items-center gap-2">
+                                        <div className="flex flex-col min-w-0">
+                                          <div className="flex items-center gap-2 flex-wrap">
                                             <span className="text-sm font-bold text-black">{app.name} {app.surname}</span>
                                             <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${app.planType === 'tenant' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>
                                               {app.planType}
                                             </span>
                                           </div>
+                                          {app.email && (
+                                            <span className="text-[11px] text-slate-500 font-medium truncate">{app.email}</span>
+                                          )}
                                           <span className="text-[10px] text-slate-400 font-medium">Applied {app.date}</span>
                                         </div>
                                       </div>
                                       
-                                      <div className="flex gap-2">
+                                      <div className="flex gap-2 shrink-0">
                                         {app.status === 'pending' && (
                                           <>
                                             <button 
-                                              onClick={() => setReferralApplications(prev => prev.map(a => a.id === app.id ? {...a, status: 'approved'} : a))}
+                                              onClick={() => updateReferralStatus(app.id, 'approved')}
                                               className="px-4 py-2 bg-emerald-500 text-white text-[10px] font-bold uppercase tracking-wider rounded-xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20"
                                             >
                                               Approve
                                             </button>
                                             <button 
-                                              onClick={() => setReferralApplications(prev => prev.map(a => a.id === app.id ? {...a, status: 'rejected'} : a))}
+                                              onClick={() => updateReferralStatus(app.id, 'rejected')}
                                               className="px-4 py-2 bg-red-500 text-white text-[10px] font-bold uppercase tracking-wider rounded-xl hover:bg-red-600 transition-all shadow-lg shadow-red-500/20"
                                             >
                                               Reject
@@ -1164,7 +1424,7 @@ export default function App() {
                                         )}
                                         {app.status === 'approved' && (
                                           <button 
-                                            onClick={() => setReferralApplications(prev => prev.map(a => a.id === app.id ? {...a, status: 'frozen'} : a))}
+                                            onClick={() => updateReferralStatus(app.id, 'frozen')}
                                             className="px-4 py-2 bg-slate-900 text-white text-[10px] font-bold uppercase tracking-wider rounded-xl hover:bg-black transition-all shadow-lg"
                                           >
                                             Freeze
@@ -1172,7 +1432,7 @@ export default function App() {
                                         )}
                                         {app.status === 'frozen' && (
                                           <button 
-                                            onClick={() => setReferralApplications(prev => prev.map(a => a.id === app.id ? {...a, status: 'approved'} : a))}
+                                            onClick={() => updateReferralStatus(app.id, 'approved')}
                                             className="px-4 py-2 bg-blue-600 text-white text-[10px] font-bold uppercase tracking-wider rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20"
                                           >
                                             Unfreeze
@@ -1205,15 +1465,16 @@ export default function App() {
                                     
                                     {app.status === 'approved' && (
                                       <div className="flex items-center gap-2 text-emerald-600 bg-emerald-50 py-2 px-3 rounded-xl">
-                                        <CheckCircle2 className="w-3 h-3" />
+                                        <CheckCircle2 className="w-3 h-3 shrink-0" />
                                         <span className="text-[9px] font-bold uppercase tracking-widest">Verified to use the app until subscription ends</span>
                                       </div>
                                     )}
                                   </div>
                                 ))
                               ) : (
-                                <div className="text-center py-6 opacity-20 bg-slate-50 border border-dashed border-slate-200 rounded-2xl">
-                                  <p className="text-[10px] font-bold uppercase tracking-widest">No referrals found</p>
+                                <div className="text-center py-8 opacity-40 bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-4">
+                                  <p className="text-[10px] font-bold uppercase tracking-widest mb-1">No referrals in this category</p>
+                                  <p className="text-[9px] text-slate-500 font-medium">Share your Tenant Referral Link under the Tenant tab to receive new applicants.</p>
                                 </div>
                               )}
                             </div>

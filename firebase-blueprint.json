@@ -22,6 +22,9 @@
       "properties": {
         "name": { "type": "string" },
         "surname": { "type": "string" },
+        "email": { "type": "string" },
+        "contact": { "type": "string" },
+        "tenantEmail": { "type": "string" },
         "status": { "type": "string" },
         "planType": { "type": "string" },
         "date": { "type": "string" },
