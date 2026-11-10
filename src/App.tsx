@@ -1151,139 +1151,139 @@ export default function App() {
               <motion.div
                 initial={{ scale: 0.9, y: 20 }}
                 animate={{ scale: 1, y: 0 }}
-                className="bg-white rounded-[2rem] w-full max-w-md p-8 md:p-12 shadow-2xl relative my-auto"
+                className="bg-white rounded-[2rem] w-full max-w-sm p-6 shadow-2xl relative my-auto max-h-[90vh] overflow-y-auto"
               >
                 <button 
                   onClick={() => setIsAuthOpen(false)}
-                  className="absolute top-6 right-6 p-2 hover:bg-slate-100 rounded-full transition-colors"
+                  className="absolute top-4 right-4 p-2 hover:bg-slate-100 rounded-full transition-colors"
                 >
-                  <X className="w-6 h-6 text-slate-400" />
+                  <X className="w-5 h-5 text-slate-400" />
                 </button>
 
                 {authMode === 'welcome' && (
-                  <div className="text-center py-10">
-                    <CheckCircle2 className="w-16 h-16 text-blue-600 mx-auto mb-6" />
-                    <h2 className="text-3xl font-bold text-slate-900 mb-2">Welcome Back!</h2>
-                    <p className="text-slate-500">{currentUser?.email}</p>
+                  <div className="text-center py-6">
+                    <CheckCircle2 className="w-12 h-12 text-blue-600 mx-auto mb-4" />
+                    <h2 className="text-2xl font-bold text-slate-900 mb-1">Welcome Back!</h2>
+                    <p className="text-xs text-slate-500">{currentUser?.email}</p>
                   </div>
                 )}
 
                 {authMode === 'congrats' && (
-                  <div className="text-center py-10">
-                    <CheckCircle2 className="w-16 h-16 text-blue-600 mx-auto mb-6" />
-                    <h2 className="text-3xl font-bold text-slate-900 mb-2">Congratulations!</h2>
-                    <p className="text-slate-500 mb-6">Welcome to the app. Let's get you activated.</p>
-                    <Loader2 className="w-8 h-8 text-blue-600 animate-spin mx-auto" />
+                  <div className="text-center py-6">
+                    <CheckCircle2 className="w-12 h-12 text-blue-600 mx-auto mb-4" />
+                    <h2 className="text-2xl font-bold text-slate-900 mb-1">Congratulations!</h2>
+                    <p className="text-xs text-slate-500 mb-4">Welcome to the app. Let's get you activated.</p>
+                    <Loader2 className="w-6 h-6 text-blue-600 animate-spin mx-auto" />
                   </div>
                 )}
 
                 {(authMode === 'signin' || authMode === 'signup') && (
                   <>
-                    <div className="text-center mb-6">
-                      <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        {authMode === 'signin' ? <LogIn className="w-8 h-8 text-blue-600" /> : <UserPlus className="w-8 h-8 text-blue-600" />}
+                    <div className="text-center mb-4">
+                      <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                        {authMode === 'signin' ? <LogIn className="w-6 h-6 text-blue-600" /> : <UserPlus className="w-6 h-6 text-blue-600" />}
                       </div>
-                      <h2 className="text-3xl font-bold text-slate-900 mb-2">{authMode === 'signin' ? 'Sign In' : 'Sign Up'}</h2>
-                      <p className="text-slate-500 mb-6">{authMode === 'signin' ? 'Access your account' : 'Create your account to continue'}</p>
+                      <h2 className="text-2xl font-bold text-slate-900 mb-1">{authMode === 'signin' ? 'Sign In' : 'Sign Up'}</h2>
+                      <p className="text-xs text-slate-500 mb-4">{authMode === 'signin' ? 'Access your account' : 'Create your account to continue'}</p>
                       
                       <button 
                         onClick={handleGoogleAuth}
                         disabled={isLoading}
-                        className="w-full h-12 bg-white border-2 border-slate-200 hover:border-black text-slate-700 rounded-xl font-bold transition-all shadow-sm flex items-center justify-center gap-3 mb-6"
+                        className="w-full h-10 bg-white border-2 border-slate-200 hover:border-black text-slate-700 rounded-xl font-bold transition-all shadow-sm flex items-center justify-center gap-2 mb-4 text-xs"
                       >
-                        <svg className="w-5 h-5" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4" viewBox="0 0 24 24">
                           <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                           <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
                           <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
                           <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
                         </svg>
-                        <span>Continue with Google (Firebase)</span>
+                        <span>Continue with Google</span>
                       </button>
 
-                      <div className="relative flex py-2 items-center">
+                      <div className="relative flex py-1 items-center">
                         <div className="flex-grow border-t border-slate-200"></div>
-                        <span className="flex-shrink mx-4 text-slate-400 text-[10px] font-bold uppercase tracking-widest">or with email</span>
+                        <span className="flex-shrink mx-3 text-slate-400 text-[9px] font-bold uppercase tracking-widest">or email</span>
                         <div className="flex-grow border-t border-slate-200"></div>
                       </div>
                     </div>
 
-                    <form onSubmit={handleAuth} className="space-y-3">
-                      <div className="grid grid-cols-2 gap-3">
+                    <form onSubmit={handleAuth} className="space-y-2.5">
+                      <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <label className="block text-[8px] font-bold uppercase tracking-widest text-slate-400 mb-1 ml-1">Name</label>
+                          <label className="block text-[8px] font-bold uppercase tracking-widest text-slate-400 mb-0.5 ml-1">Name</label>
                           <input 
                             name="name"
                             type="text" 
                             required 
-                            className="w-full h-10 px-3 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-black transition-all"
+                            className="w-full h-9 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-black transition-all"
                             placeholder="John"
                           />
                         </div>
                         <div>
-                          <label className="block text-[8px] font-bold uppercase tracking-widest text-slate-400 mb-1 ml-1">Surname</label>
+                          <label className="block text-[8px] font-bold uppercase tracking-widest text-slate-400 mb-0.5 ml-1">Surname</label>
                           <input 
                             name="surname"
                             type="text" 
                             required 
-                            className="w-full h-10 px-3 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-black transition-all"
+                            className="w-full h-9 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-black transition-all"
                             placeholder="Doe"
                           />
                         </div>
                       </div>
                       
                       <div>
-                        <label className="block text-[8px] font-bold uppercase tracking-widest text-slate-400 mb-1 ml-1">Email Address</label>
+                        <label className="block text-[8px] font-bold uppercase tracking-widest text-slate-400 mb-0.5 ml-1">Email Address</label>
                         <input 
                           name="email"
                           type="email" 
                           required 
-                          className="w-full h-10 px-3 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-black transition-all"
+                          className="w-full h-9 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-black transition-all"
                           placeholder="name@example.com"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-[8px] font-bold uppercase tracking-widest text-slate-400 mb-1 ml-1">Contact Number</label>
+                        <label className="block text-[8px] font-bold uppercase tracking-widest text-slate-400 mb-0.5 ml-1">Contact Number</label>
                         <input 
                           name="contact"
                           type="tel" 
                           required 
-                          className="w-full h-10 px-3 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-black transition-all"
+                          className="w-full h-9 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-black transition-all"
                           placeholder="+27 12 345 6789"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-[8px] font-bold uppercase tracking-widest text-slate-400 mb-1 ml-1">Password</label>
+                        <label className="block text-[8px] font-bold uppercase tracking-widest text-slate-400 mb-0.5 ml-1">Password</label>
                         <input 
                           name="password"
                           type="password" 
                           required 
-                          className="w-full h-10 px-3 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-black transition-all"
+                          className="w-full h-9 px-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-black transition-all"
                           placeholder="••••••••"
                         />
                       </div>
                       
                       {authMode === 'signup' && (
-                        <div className="flex items-center gap-3 p-1">
+                        <div className="flex items-center gap-2 py-0.5">
                           <input type="checkbox" required className="w-3 h-3 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
-                          <label className="text-[10px] text-slate-500 font-medium">I accept the <span className="text-blue-600 underline">Terms & Conditions</span></label>
+                          <label className="text-[9px] text-slate-500 font-medium">I accept the <span className="text-blue-600 underline">Terms & Conditions</span></label>
                         </div>
                       )}
 
                       <button 
                         disabled={isLoading}
                         type="submit" 
-                        className="w-full h-12 bg-black text-white rounded-xl font-bold hover:bg-slate-800 transition-all shadow-lg flex items-center justify-center gap-2"
+                        className="w-full h-10 bg-black text-white rounded-xl font-bold hover:bg-slate-800 transition-all shadow-lg flex items-center justify-center gap-2 text-xs"
                       >
-                        {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : (authMode === 'signin' ? 'Sign In' : 'Sign Up')}
+                        {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : (authMode === 'signin' ? 'Sign In' : 'Sign Up')}
                       </button>
                     </form>
 
-                    <div className="mt-8 text-center">
+                    <div className="mt-4 text-center">
                       <button 
                         onClick={() => setAuthMode(authMode === 'signin' ? 'signup' : 'signin')}
-                        className="text-sm font-medium text-slate-500 hover:text-black transition-colors"
+                        className="text-xs font-medium text-slate-500 hover:text-black transition-colors"
                       >
                         {authMode === 'signin' ? "Don't have an account? Sign Up" : "Already have an account? Sign In"}
                       </button>
@@ -1565,57 +1565,59 @@ export default function App() {
       </div>
 
       {/* Bottom Menu Bar (Fixed Positioning for reliable visibility) */}
-      <div className="fixed bottom-0 left-0 w-full h-20 bg-white border-t border-slate-200 shadow-[0_-4px_20px_rgba(0,0,0,0.1)] z-[3000] px-6 flex items-center justify-between pb-safe">
-        {!currentUser ? (
-          <div className="flex items-center justify-center w-full">
-            <TabButton 
-              icon={<LogIn />} 
-              label="Sign In/Up" 
-              active={isAuthOpen} 
-              onClick={() => setIsAuthOpen(true)} 
-            />
-          </div>
-        ) : isFullyActivated ? (
-          <div className={`flex w-full ${selectedSub === 'tenant' ? 'justify-between' : 'justify-center gap-14'}`}>
-            {selectedSub === 'tenant' ? (
-              <>
-                <TabButton icon={<Users />} label="Tenant" active={activeTab === 'tenant'} onClick={() => handleTabClick('tenant')} />
-                <TabButton icon={<Share2 />} label="Refs" active={activeTab === 'referrals'} onClick={() => handleTabClick('referrals')} />
-                <TabButton icon={<Briefcase />} label="GiGs" active={activeTab === 'map'} onClick={() => setActiveTab('map')} />
-                <TabButton icon={<UserSearch />} label="Seekers" active={activeTab === 'seekers'} onClick={() => handleTabClick('seekers')} />
-                <TabButton 
-                  icon={<UserCircle />} 
-                  label="Profile" 
-                  active={activeTab === 'profile'} 
-                  onClick={() => handleTabClick('profile')} 
-                  image={currentUser?.selfieUrl}
-                />
-              </>
-            ) : (
-              <>
-                <TabButton icon={<UserSearch />} label="Seekers" active={activeTab === 'seekers'} onClick={() => handleTabClick('seekers')} />
-                <TabButton icon={<Briefcase />} label="GiGs" active={activeTab === 'map'} onClick={() => setActiveTab('map')} />
-                <TabButton 
-                  icon={<UserCircle />} 
-                  label="Profile" 
-                  active={activeTab === 'profile'} 
-                  onClick={() => handleTabClick('profile')} 
-                  image={currentUser?.selfieUrl}
-                />
-              </>
-            )}
-          </div>
-        ) : (
-          <div className="flex items-center justify-center w-full">
-            <TabButton 
-              icon={<Zap />} 
-              label={isActivated ? 'Active' : 'Activation'} 
-              active={isActivated} 
-              onClick={() => setIsActivated(true)} 
-            />
-          </div>
-        )}
-      </div>
+      {!isAuthOpen && (
+        <div className="fixed bottom-0 left-0 w-full h-20 bg-white border-t border-slate-200 shadow-[0_-4px_20px_rgba(0,0,0,0.1)] z-[3000] px-6 flex items-center justify-between pb-safe">
+          {!currentUser ? (
+            <div className="flex items-center justify-center w-full">
+              <TabButton 
+                icon={<LogIn />} 
+                label="Sign In/Up" 
+                active={isAuthOpen} 
+                onClick={() => setIsAuthOpen(true)} 
+              />
+            </div>
+          ) : isFullyActivated ? (
+            <div className={`flex w-full ${selectedSub === 'tenant' ? 'justify-between' : 'justify-center gap-14'}`}>
+              {selectedSub === 'tenant' ? (
+                <>
+                  <TabButton icon={<Users />} label="Tenant" active={activeTab === 'tenant'} onClick={() => handleTabClick('tenant')} />
+                  <TabButton icon={<Share2 />} label="Refs" active={activeTab === 'referrals'} onClick={() => handleTabClick('referrals')} />
+                  <TabButton icon={<Briefcase />} label="GiGs" active={activeTab === 'map'} onClick={() => setActiveTab('map')} />
+                  <TabButton icon={<UserSearch />} label="Seekers" active={activeTab === 'seekers'} onClick={() => handleTabClick('seekers')} />
+                  <TabButton 
+                    icon={<UserCircle />} 
+                    label="Profile" 
+                    active={activeTab === 'profile'} 
+                    onClick={() => handleTabClick('profile')} 
+                    image={currentUser?.selfieUrl}
+                  />
+                </>
+              ) : (
+                <>
+                  <TabButton icon={<UserSearch />} label="Seekers" active={activeTab === 'seekers'} onClick={() => handleTabClick('seekers')} />
+                  <TabButton icon={<Briefcase />} label="GiGs" active={activeTab === 'map'} onClick={() => setActiveTab('map')} />
+                  <TabButton 
+                    icon={<UserCircle />} 
+                    label="Profile" 
+                    active={activeTab === 'profile'} 
+                    onClick={() => handleTabClick('profile')} 
+                    image={currentUser?.selfieUrl}
+                  />
+                </>
+              )}
+            </div>
+          ) : (
+            <div className="flex items-center justify-center w-full">
+              <TabButton 
+                icon={<Zap />} 
+                label={isActivated ? 'Active' : 'Activation'} 
+                active={isActivated} 
+                onClick={() => setIsActivated(true)} 
+              />
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
