@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap, Circle } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap, Circle, Polyline } from 'react-leaflet';
 import L from 'leaflet';
-import { Search, Satellite, Map as MapIcon, Zap, Plus, Minus, Navigation, Camera, FileUp, Receipt, CheckCircle2, Loader2, X, Users, Briefcase, UserSearch, UserCircle, Smartphone, LogIn, UserPlus, Share2 } from 'lucide-react';
+import { Search, Satellite, Map as MapIcon, Zap, Plus, Minus, Navigation, Camera, FileUp, Receipt, CheckCircle2, Loader2, X, Users, Briefcase, UserSearch, UserCircle, Smartphone, LogIn, LogOut, UserPlus, Share2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 // Fix for default marker icons
@@ -305,6 +305,9 @@ export default function App() {
   const [isFullyActivated, setIsFullyActivated] = useState(() => {
     return localStorage.getItem('world_explorer_fully_activated') === 'true';
   });
+  const [referralSearch, setReferralSearch] = useState('');
+  const [seekerSearch, setSeekerSearch] = useState('');
+  const [tenantProfit, setTenantProfit] = useState({ total: 0, sub: 0, user: 0 });
   const [activeTab, setActiveTab] = useState<TabType>('map');
   const [step, setStep] = useState<OnboardingStep>('subscription');
   const [selectedSub, setSelectedSub] = useState<'tenant' | 'user' | null>(null);
@@ -312,10 +315,58 @@ export default function App() {
   const [idFile, setIdFile] = useState<File | null>(null);
   const [paymentFile, setPaymentFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Gig / Hiring States
+  const [activeGig, setActiveGig] = useState<{
+    id: string;
+    seekerName: string;
+    seekerRole: string;
+    distance: string;
+    eta: string;
+    status: 'active' | 'arriving' | 'completed';
+    destination: [number, number];
+  } | null>(null);
+  const [hiringSeekerId, setHiringSeekerId] = useState<number | null>(null);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancelBy, setCancelBy] = useState<'user' | 'seeker' | null>(null);
+
   const [referralApplications, setReferralApplications] = useState([
-    { id: 1, name: 'Alice', surname: 'Smith', status: 'pending', date: '2026-11-08' },
-    { id: 2, name: 'Bob', surname: 'Jones', status: 'pending', date: '2026-11-09' },
+    { 
+      id: 1, 
+      name: 'Alice', 
+      surname: 'Smith', 
+      status: 'pending', 
+      planType: 'user',
+      date: '2026-11-08',
+      selfie: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alice',
+      idDoc: 'https://images.unsplash.com/photo-1554224155-1696413565d3?w=800&auto=format&fit=crop&q=60',
+      payment: 'https://images.unsplash.com/photo-1601597111158-2fcee29ec4d0?w=800&auto=format&fit=crop&q=60'
+    },
+    { 
+      id: 2, 
+      name: 'Bob', 
+      surname: 'Jones', 
+      status: 'pending', 
+      planType: 'tenant',
+      date: '2026-11-09',
+      selfie: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Bob',
+      idDoc: 'https://images.unsplash.com/photo-1554224155-1696413565d3?w=800&auto=format&fit=crop&q=60',
+      payment: 'https://images.unsplash.com/photo-1601597111158-2fcee29ec4d0?w=800&auto=format&fit=crop&q=60'
+    },
+    { 
+      id: 3, 
+      name: 'Charlie', 
+      surname: 'Brown', 
+      status: 'approved', 
+      planType: 'user',
+      date: '2026-11-05',
+      selfie: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Charlie',
+      idDoc: 'https://images.unsplash.com/photo-1554224155-1696413565d3?w=800&auto=format&fit=crop&q=60',
+      payment: 'https://images.unsplash.com/photo-1601597111158-2fcee29ec4d0?w=800&auto=format&fit=crop&q=60'
+    },
   ]);
+  const [viewingDoc, setViewingDoc] = useState<string | null>(null);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -421,11 +472,9 @@ export default function App() {
       setStep('submitting');
       setTimeout(() => {
         setStep('reviewing');
-        if (selectedSub === 'tenant') {
-          setIsFullyActivated(true);
-          if (currentUser) {
-            setCurrentUser({ ...currentUser, isRegistered: true });
-          }
+        setIsFullyActivated(true); // Now User Sub also activates these features
+        if (currentUser) {
+          setCurrentUser({ ...currentUser, isRegistered: true });
         }
       }, 2000);
     }
@@ -473,6 +522,58 @@ export default function App() {
     setActiveTab(prev => prev === tab ? 'map' : tab);
   };
 
+  const [seekers] = useState([
+    { id: 1, name: 'David', surname: 'Mokoena', role: 'Business Owner', distance: '1.2km', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=David' },
+    { id: 2, name: 'Sarah', surname: 'Luthuli', role: 'Event Planner', distance: '3.5km', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah' },
+    { id: 3, name: 'Thabo', surname: 'Ndlovu', role: 'Logistics Manager', distance: '0.8km', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Thabo' },
+  ]);
+
+  const filteredSeekers = seekers.filter(seeker => 
+    `${seeker.name} ${seeker.surname}`.toLowerCase().includes(seekerSearch.toLowerCase()) ||
+    seeker.role.toLowerCase().includes(seekerSearch.toLowerCase())
+  );
+
+  const handleHire = (seeker: any) => {
+    setHiringSeekerId(seeker.id);
+    // Simulate seeker accepting after 3 seconds
+    setTimeout(() => {
+      setHiringSeekerId(null);
+      setActiveGig({
+        id: Math.random().toString(36).substr(2, 9),
+        seekerName: seeker.name,
+        seekerRole: seeker.role,
+        distance: seeker.distance,
+        eta: '12 mins',
+        status: 'active',
+        destination: [-26.2041, 28.0473] // Mock destination (User's location)
+      });
+      setActiveTab('map');
+      speakNavigation(`Gig accepted by ${seeker.name}. Navigating to user destination.`);
+    }, 3000);
+  };
+
+  const speakNavigation = (text: string) => {
+    const msg = new SpeechSynthesisUtterance(text);
+    const voices = window.speechSynthesis.getVoices();
+    msg.voice = voices.find(v => v.lang.includes('en-ZA')) || voices.find(v => v.lang.includes('en-GB')) || voices[0];
+    msg.rate = 0.9;
+    window.speechSynthesis.speak(msg);
+  };
+
+  const handleCancelGig = (by: 'user' | 'seeker') => {
+    setCancelBy(by);
+    setShowCancelModal(true);
+  };
+
+  const confirmCancel = () => {
+    if (!cancelReason.trim()) return;
+    speakNavigation(`Gig cancelled by ${cancelBy}. Reason: ${cancelReason}`);
+    setActiveGig(null);
+    setShowCancelModal(false);
+    setCancelReason('');
+    setCancelBy(null);
+  };
+
   return (
     <div className="h-screen h-[100dvh] w-full bg-slate-50 font-sans overflow-hidden relative">
       {/* Content Area */}
@@ -494,7 +595,152 @@ export default function App() {
           <LocationMarker />
           <SearchBar />
           <CustomControls viewMode={viewMode} setViewMode={setViewMode} />
+
+          {/* Active Gig Route & Marker */}
+          {activeGig && (
+            <>
+              <Polyline 
+                positions={[
+                  [-26.2041, 28.0473], // User location
+                  [-26.2000, 28.0400], // Intermediate point
+                  [-26.1950, 28.0350]  // Seeker location
+                ]} 
+                color="#2563eb" 
+                weight={6} 
+                opacity={0.6}
+              />
+              <Marker position={activeGig.destination} icon={customIcon}>
+                <Popup>
+                  <div className="p-2 text-center">
+                    <p className="font-bold text-xs uppercase">Gig Destination</p>
+                    <p className="text-[10px] text-slate-500">Arriving in {activeGig.eta}</p>
+                  </div>
+                </Popup>
+              </Marker>
+            </>
+          )}
         </MapContainer>
+
+        {/* Navigation Overlay (GiGs feature) */}
+        <AnimatePresence>
+          {activeGig && activeTab === 'map' && (
+            <motion.div
+              initial={{ opacity: 0, y: 100 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 100 }}
+              className="absolute bottom-24 left-4 right-4 z-[2000] bg-white rounded-3xl shadow-2xl p-6 border border-slate-100 flex flex-col gap-4 max-w-lg mx-auto"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-white">
+                    <Navigation className="w-6 h-6 animate-pulse" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Navigating to User</p>
+                    <p className="text-lg font-bold text-black">{activeGig.seekerName}</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-2xl font-black text-black tabular-nums">{activeGig.eta}</p>
+                  <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest">{activeGig.distance} left</p>
+                </div>
+              </div>
+
+              <div className="h-1 bg-slate-100 rounded-full overflow-hidden">
+                <motion.div 
+                  initial={{ width: 0 }}
+                  animate={{ width: '40%' }}
+                  className="h-full bg-blue-600"
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => speakNavigation(`You are on the fastest route to your destination. Turn left in 200 meters.`)}
+                  className="flex-1 py-3 bg-slate-50 text-black rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-slate-100 transition-colors flex items-center justify-center gap-2"
+                >
+                  <Smartphone className="w-4 h-4" />
+                  Voice Nav
+                </button>
+                <button 
+                  onClick={() => handleCancelGig('user')}
+                  className="flex-1 py-3 bg-red-50 text-red-600 rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-red-100 transition-colors flex items-center justify-center gap-2"
+                >
+                  <X className="w-4 h-4" />
+                  Cancel Gig
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Hiring Loading Overlay */}
+        <AnimatePresence>
+          {hiringSeekerId !== null && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 z-[3000] bg-black/60 backdrop-blur-md flex flex-col items-center justify-center text-white"
+            >
+              <div className="relative w-24 h-24 mb-6">
+                <svg className="w-full h-full animate-spin">
+                  <circle cx="48" cy="48" r="40" stroke="currentColor" strokeWidth="4" fill="transparent" className="text-white/20" />
+                  <circle cx="48" cy="48" r="40" stroke="currentColor" strokeWidth="4" fill="transparent" strokeDasharray="251.32" strokeDashoffset="180" className="text-white" />
+                </svg>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <UserSearch className="w-8 h-8 text-white" />
+                </div>
+              </div>
+              <h2 className="text-2xl font-bold mb-2">Requesting Gig...</h2>
+              <p className="text-white/60 text-sm font-medium">Waiting for seeker to accept</p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Cancellation Modal */}
+        <AnimatePresence>
+          {showCancelModal && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[5000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-6"
+            >
+              <motion.div
+                initial={{ scale: 0.9, y: 20 }}
+                animate={{ scale: 1, y: 0 }}
+                className="bg-white rounded-3xl w-full max-w-md p-8 shadow-2xl"
+              >
+                <h3 className="text-2xl font-bold text-black mb-2 uppercase tracking-tight">Cancel Gig</h3>
+                <p className="text-slate-500 text-sm mb-6">Please provide a reason for cancelling this gig. This will be shared with the other party.</p>
+                
+                <textarea 
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  placeholder="Reason for cancellation..."
+                  className="w-full h-32 p-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-2 focus:ring-black transition-all mb-6 resize-none font-medium"
+                />
+
+                <div className="flex gap-3">
+                  <button 
+                    onClick={() => setShowCancelModal(false)}
+                    className="flex-1 py-4 bg-slate-100 text-black rounded-xl font-bold uppercase tracking-widest text-[10px]"
+                  >
+                    Back
+                  </button>
+                  <button 
+                    onClick={confirmCancel}
+                    disabled={!cancelReason.trim()}
+                    className="flex-1 py-4 bg-black text-white rounded-xl font-bold uppercase tracking-widest text-[10px] disabled:opacity-50"
+                  >
+                    Confirm Cancel
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Feature Tabs Overlays */}
         <AnimatePresence>
@@ -507,14 +753,31 @@ export default function App() {
             >
               <div className="w-full max-w-lg pb-24">
                 {/* Very Top Search Bar for Specific Features */}
-                {(activeTab === 'referrals' || activeTab === 'seekers') && (
+                {activeTab === 'referrals' && (
                   <div className="relative mb-10 pt-2">
                     <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
                       <Search className="w-4 h-4 text-black" />
                     </div>
                     <input 
                       type="text" 
-                      placeholder={`Search ${activeTab}...`}
+                      value={referralSearch}
+                      onChange={(e) => setReferralSearch(e.target.value)}
+                      placeholder="Search Referrals..."
+                      className="w-full h-14 pl-12 pr-6 bg-slate-100 border-none rounded-2xl focus:ring-2 focus:ring-black transition-all font-medium text-black placeholder:text-slate-400 shadow-sm"
+                    />
+                  </div>
+                )}
+
+                {activeTab === 'seekers' && (
+                  <div className="relative mb-10 pt-2">
+                    <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+                      <Search className="w-4 h-4 text-black" />
+                    </div>
+                    <input 
+                      type="text" 
+                      value={seekerSearch}
+                      onChange={(e) => setSeekerSearch(e.target.value)}
+                      placeholder="Search Seekers..."
                       className="w-full h-14 pl-12 pr-6 bg-slate-100 border-none rounded-2xl focus:ring-2 focus:ring-black transition-all font-medium text-black placeholder:text-slate-400 shadow-sm"
                     />
                   </div>
@@ -528,97 +791,227 @@ export default function App() {
                 </div>
                 
                 {activeTab === 'tenant' && (
-                  <div className="text-left space-y-8 w-full max-w-md mx-auto pt-6">
+                  <div className="text-left space-y-8 w-full max-w-md mx-auto pt-6 relative">
+                    <button 
+                      onClick={resetAccount}
+                      className="absolute -top-4 -right-4 p-3 bg-red-50 text-red-600 rounded-2xl hover:bg-red-100 transition-colors shadow-sm"
+                    >
+                      <LogOut className="w-5 h-5" />
+                    </button>
                     {/* Total Profit Card */}
                     <div className="bg-black rounded-3xl p-8 text-white shadow-2xl relative overflow-hidden">
                       <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl" />
                       <p className="text-[10px] font-bold uppercase tracking-[0.3em] opacity-50 mb-1">Total Profit Balance</p>
-                      <h2 className="text-4xl font-bold tracking-tighter tabular-nums">R0.00</h2>
+                      <h2 className="text-4xl font-bold tracking-tighter tabular-nums">R{tenantProfit.total.toFixed(2)}</h2>
+                      
+                      <button 
+                        onClick={() => setTenantProfit({ total: 0, sub: 0, user: 0 })}
+                        className="mt-6 text-[9px] font-bold uppercase tracking-widest bg-white/10 px-4 py-2 rounded-full hover:bg-white/20 transition-all"
+                      >
+                        Reset Balance
+                      </button>
                     </div>
 
                     {/* Breakdown */}
                     <div className="grid grid-cols-2 gap-4">
                       <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
                         <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-1">Tenant Sub Profit</p>
-                        <p className="text-xl font-bold text-black tabular-nums">R0.00</p>
+                        <p className="text-xl font-bold text-black tabular-nums">R{tenantProfit.sub.toFixed(2)}</p>
                       </div>
                       <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
                         <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-1">User Sub Profit</p>
-                        <p className="text-xl font-bold text-black tabular-nums">R0.00</p>
+                        <p className="text-xl font-bold text-black tabular-nums">R{tenantProfit.user.toFixed(2)}</p>
                       </div>
                     </div>
 
                     {/* Share Link */}
                     <div className="bg-blue-50 border border-blue-100 p-6 rounded-2xl relative group">
-                      <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-3">Your Network Link</p>
+                      <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-3">Invite & Build Network</p>
                       <div className="flex items-center gap-3 bg-white border border-blue-200 rounded-xl p-3">
                         <input 
                           readOnly 
-                          value={`https://worldexplorer.app/ref/${currentUser?.name?.toLowerCase() || 'user'}2026`} 
+                          value={`https://worldexplorer.app/invite/${currentUser?.name?.toLowerCase() || 'user'}${currentUser?.surname?.toLowerCase() || ''}`} 
                           className="grow text-xs font-mono text-blue-800 bg-transparent outline-none truncate"
                         />
                         <button 
                           onClick={() => {
-                            navigator.clipboard.writeText(`https://worldexplorer.app/ref/${currentUser?.name?.toLowerCase() || 'user'}2026`);
-                            alert('Link copied to clipboard!');
+                            navigator.clipboard.writeText(`https://worldexplorer.app/invite/${currentUser?.name?.toLowerCase() || 'user'}${currentUser?.surname?.toLowerCase() || ''}`);
+                            alert('Invitation link copied!');
                           }}
                           className="bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 transition-colors"
                         >
                           <Share2 className="w-4 h-4" />
                         </button>
                       </div>
-                      <p className="text-[9px] text-blue-400 mt-3 font-medium">Invite users and earn a passive monthly income from their subscriptions.</p>
+                      <p className="text-[9px] text-blue-400 mt-3 font-medium">Earn a passive monthly income from user subscriptions in your network.</p>
                     </div>
                   </div>
                 )}
 
                 {activeTab === 'referrals' && (
-                  <div className="w-full max-w-md mx-auto pt-4 space-y-6">
-                    <div className="space-y-4">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] ml-2">Pending Applications</p>
-                      {referralApplications.filter(app => app.status === 'pending').length > 0 ? (
-                        referralApplications.filter(app => app.status === 'pending').map(app => (
-                          <div key={app.id} className="bg-slate-50 border border-slate-100 p-5 rounded-2xl flex items-center justify-between shadow-sm">
-                            <div className="flex flex-col">
-                              <span className="text-sm font-bold text-black">{app.name} {app.surname}</span>
-                              <span className="text-[10px] text-slate-400 font-medium">Applied on {app.date}</span>
-                            </div>
-                            <div className="flex gap-2">
-                              <button 
-                                onClick={() => setReferralApplications(prev => prev.map(a => a.id === app.id ? {...a, status: 'approved'} : a))}
-                                className="px-3 py-1.5 bg-emerald-500 text-white text-[10px] font-bold uppercase tracking-wider rounded-lg hover:bg-emerald-600 transition-colors"
-                              >
-                                Approve
-                              </button>
-                              <button 
-                                onClick={() => setReferralApplications(prev => prev.map(a => a.id === app.id ? {...a, status: 'rejected'} : a))}
-                                className="px-3 py-1.5 bg-red-500 text-white text-[10px] font-bold uppercase tracking-wider rounded-lg hover:bg-red-600 transition-colors"
-                              >
-                                Reject
-                              </button>
+                  <div className="w-full max-w-2xl mx-auto pt-4 space-y-6">
+                    <div className="space-y-6">
+                      {['pending', 'approved', 'frozen'].map((sectionStatus) => {
+                        const filteredReferrals = referralApplications.filter(app => 
+                          `${app.name} ${app.surname}`.toLowerCase().includes(referralSearch.toLowerCase())
+                        );
+                        const apps = filteredReferrals.filter(app => app.status === sectionStatus);
+                        if (apps.length === 0 && sectionStatus !== 'pending') return null;
+
+                        return (
+                          <div key={sectionStatus} className="space-y-4">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] ml-2">
+                              {sectionStatus === 'pending' ? 'Pending Applications' : 
+                               sectionStatus === 'approved' ? 'Active Network' : 'Frozen Accounts'}
+                            </p>
+                            
+                            <div className="grid gap-4">
+                              {apps.length > 0 ? (
+                                apps.map(app => (
+                                  <div key={app.id} className="bg-slate-50 border border-slate-100 p-6 rounded-3xl shadow-sm space-y-6">
+                                    <div className="flex items-start justify-between">
+                                      <div className="flex items-center gap-4">
+                                        <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white shadow-md cursor-pointer bg-slate-200" onClick={() => setViewingDoc(app.selfie)}>
+                                          <img src={app.selfie} className="w-full h-full object-cover" alt="Selfie" />
+                                        </div>
+                                        <div className="flex flex-col">
+                                          <div className="flex items-center gap-2">
+                                            <span className="text-sm font-bold text-black">{app.name} {app.surname}</span>
+                                            <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${app.planType === 'tenant' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>
+                                              {app.planType}
+                                            </span>
+                                          </div>
+                                          <span className="text-[10px] text-slate-400 font-medium">Applied {app.date}</span>
+                                        </div>
+                                      </div>
+                                      
+                                      <div className="flex gap-2">
+                                        {app.status === 'pending' && (
+                                          <>
+                                            <button 
+                                              onClick={() => setReferralApplications(prev => prev.map(a => a.id === app.id ? {...a, status: 'approved'} : a))}
+                                              className="px-4 py-2 bg-emerald-500 text-white text-[10px] font-bold uppercase tracking-wider rounded-xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20"
+                                            >
+                                              Approve
+                                            </button>
+                                            <button 
+                                              onClick={() => setReferralApplications(prev => prev.map(a => a.id === app.id ? {...a, status: 'rejected'} : a))}
+                                              className="px-4 py-2 bg-red-500 text-white text-[10px] font-bold uppercase tracking-wider rounded-xl hover:bg-red-600 transition-all shadow-lg shadow-red-500/20"
+                                            >
+                                              Reject
+                                            </button>
+                                          </>
+                                        )}
+                                        {app.status === 'approved' && (
+                                          <button 
+                                            onClick={() => setReferralApplications(prev => prev.map(a => a.id === app.id ? {...a, status: 'frozen'} : a))}
+                                            className="px-4 py-2 bg-slate-900 text-white text-[10px] font-bold uppercase tracking-wider rounded-xl hover:bg-black transition-all shadow-lg"
+                                          >
+                                            Freeze
+                                          </button>
+                                        )}
+                                        {app.status === 'frozen' && (
+                                          <button 
+                                            onClick={() => setReferralApplications(prev => prev.map(a => a.id === app.id ? {...a, status: 'approved'} : a))}
+                                            className="px-4 py-2 bg-blue-600 text-white text-[10px] font-bold uppercase tracking-wider rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20"
+                                          >
+                                            Unfreeze
+                                          </button>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    {/* Document Previews */}
+                                    <div className="grid grid-cols-2 gap-3 pt-2">
+                                      <div 
+                                        onClick={() => setViewingDoc(app.idDoc)}
+                                        className="aspect-video bg-slate-200 rounded-2xl overflow-hidden relative group cursor-pointer border border-slate-300/30"
+                                      >
+                                        <img src={app.idDoc} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" alt="ID" />
+                                        <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity">
+                                          <span className="text-[8px] font-bold text-white uppercase tracking-widest bg-black/40 px-2 py-1 rounded-full backdrop-blur-sm">View ID Card</span>
+                                        </div>
+                                      </div>
+                                      <div 
+                                        onClick={() => setViewingDoc(app.payment)}
+                                        className="aspect-video bg-slate-200 rounded-2xl overflow-hidden relative group cursor-pointer border border-slate-300/30"
+                                      >
+                                        <img src={app.payment} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" alt="Payment" />
+                                        <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity">
+                                          <span className="text-[8px] font-bold text-white uppercase tracking-widest bg-black/40 px-2 py-1 rounded-full backdrop-blur-sm">View POP</span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                    
+                                    {app.status === 'approved' && (
+                                      <div className="flex items-center gap-2 text-emerald-600 bg-emerald-50 py-2 px-3 rounded-xl">
+                                        <CheckCircle2 className="w-3 h-3" />
+                                        <span className="text-[9px] font-bold uppercase tracking-widest">Verified to use the app until subscription ends</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                ))
+                              ) : (
+                                <div className="text-center py-6 opacity-20 bg-slate-50 border border-dashed border-slate-200 rounded-2xl">
+                                  <p className="text-[10px] font-bold uppercase tracking-widest">No referrals found</p>
+                                </div>
+                              )}
                             </div>
                           </div>
-                        ))
-                      ) : (
-                        <div className="text-center py-10 opacity-30">
-                          <p className="text-sm font-bold uppercase tracking-widest">No Pending Referrals</p>
-                        </div>
-                      )}
+                        );
+                      })}
                     </div>
                   </div>
                 )}
 
                 {activeTab === 'seekers' && (
-                  <div className="text-center py-10 opacity-30">
-                    <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <UserSearch className="w-8 h-8" />
-                    </div>
-                    <p className="text-sm font-bold uppercase tracking-widest">No Results Found</p>
+                  <div className="w-full max-w-md mx-auto pt-4 space-y-4">
+                    {filteredSeekers.length > 0 ? (
+                      filteredSeekers.map(seeker => (
+                        <div key={seeker.id} className="bg-white border border-slate-100 p-5 rounded-2xl flex items-center justify-between group hover:shadow-lg transition-all">
+                          <div className="flex items-center gap-4">
+                            <div 
+                              onClick={() => setViewingDoc(seeker.avatar)}
+                              className="w-12 h-12 bg-slate-50 rounded-full overflow-hidden border border-slate-200 shadow-sm cursor-pointer hover:scale-105 transition-transform"
+                            >
+                              <img src={seeker.avatar} className="w-full h-full object-cover" alt={seeker.name} />
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-sm font-bold text-black">{seeker.name} {seeker.surname}</span>
+                              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{seeker.role}</span>
+                            </div>
+                          </div>
+                          <div className="flex flex-col items-end gap-2">
+                            <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-lg">{seeker.distance}</span>
+                            <button 
+                              onClick={() => handleHire(seeker)}
+                              disabled={hiringSeekerId !== null}
+                              className="px-4 py-1.5 bg-black text-white text-[10px] font-bold uppercase tracking-wider rounded-lg hover:bg-slate-800 transition-all disabled:opacity-50"
+                            >
+                              Hire
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-20 opacity-30">
+                        <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <UserSearch className="w-8 h-8" />
+                        </div>
+                        <p className="text-sm font-bold uppercase tracking-widest">No seekers found</p>
+                      </div>
+                    )}
                   </div>
                 )}
 
                 {activeTab === 'profile' && (
-                  <div className="border-t border-slate-100 pt-8">
+                  <div className="border-t border-slate-100 pt-8 relative">
+                    <button 
+                      onClick={resetAccount}
+                      className="absolute -top-4 -right-4 p-3 bg-red-50 text-red-600 rounded-2xl hover:bg-red-100 transition-colors shadow-sm"
+                    >
+                      <LogOut className="w-5 h-5" />
+                    </button>
                     <div className="flex flex-col items-center mb-8">
                       <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-slate-100 shadow-xl bg-slate-50 flex items-center justify-center mb-4">
                         {currentUser?.selfieUrl ? (
@@ -645,17 +1038,40 @@ export default function App() {
                         <p className="text-sm font-medium text-black ml-1">{currentUser?.contact}</p>
                       </div>
                     </div>
-                    
-                    <button 
-                      onClick={resetAccount}
-                      className="w-full py-4 bg-red-50 text-red-600 rounded-2xl font-bold uppercase tracking-widest text-[10px] hover:bg-red-100 transition-colors flex items-center justify-center gap-2"
-                    >
-                      <X className="w-4 h-4" />
-                      Reset Account & Logout
-                    </button>
                   </div>
                 )}
               </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Document Viewer Modal */}
+        <AnimatePresence>
+          {viewingDoc && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setViewingDoc(null)}
+              className="fixed inset-0 z-[4000] bg-black/90 backdrop-blur-xl flex items-center justify-center p-4 cursor-zoom-out"
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="relative max-w-4xl w-full max-h-[80vh] flex items-center justify-center"
+              >
+                <img 
+                  src={viewingDoc} 
+                  className="max-w-full max-h-full object-contain rounded-xl shadow-2xl" 
+                  alt="Full view" 
+                />
+                <button 
+                  onClick={() => setViewingDoc(null)}
+                  className="absolute -top-12 right-0 p-2 text-white/50 hover:text-white transition-colors"
+                >
+                  <X className="w-8 h-8" />
+                </button>
+              </motion.div>
             </motion.div>
           )}
         </AnimatePresence>
@@ -750,7 +1166,7 @@ export default function App() {
                           type="tel" 
                           required 
                           className="w-full h-10 px-3 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-black transition-all"
-                          placeholder="+1 234 567 890"
+                          placeholder="+27 12 345 6789"
                         />
                       </div>
 
@@ -820,27 +1236,28 @@ export default function App() {
                 <div className="p-8 md:p-12">
                   {step === 'subscription' && (
                     <div className="text-center">
-                      <h2 className="text-3xl font-bold text-slate-900 mb-2">Choose Plan</h2>
-                      <p className="text-slate-500 mb-10">Select a subscription to begin activation</p>
+                      <h2 className="text-3xl font-bold text-slate-900 mb-2">Choose Activation Plan</h2>
+                      <p className="text-slate-500 mb-10 max-w-md mx-auto">Select a subscription to activate your account and join the network.</p>
                       <div className="flex flex-col md:flex-row gap-8 justify-center">
                         {/* Tenant Sub */}
                         <motion.div 
                           whileHover={{ scale: 1.02 }}
                           onClick={() => handleSubSelect('tenant')}
-                          className="relative w-full max-w-[340px] aspect-[1.6/1] bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-6 shadow-xl cursor-pointer group border-4 border-transparent hover:border-blue-500 transition-all"
+                          className="relative w-full max-w-[340px] aspect-[1.6/1] bg-gradient-to-br from-slate-900 to-black rounded-3xl p-6 shadow-2xl cursor-pointer group border-4 border-transparent hover:border-blue-500 transition-all overflow-hidden"
                         >
+                          <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl group-hover:bg-blue-500/10 transition-colors" />
                           <div className="flex justify-between items-start mb-6">
                             <div className="text-left">
-                              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Corporate</span>
-                              <h3 className="text-xl font-bold text-white">Tenant Sub</h3>
+                              <span className="text-[10px] text-blue-400 font-bold uppercase tracking-widest">Passive Income</span>
+                              <h3 className="text-xl font-bold text-white">Become a Tenant</h3>
                             </div>
-                            <div className="w-10 h-7 bg-amber-400/80 rounded-md shadow-inner" />
+                            <Smartphone className="w-8 h-8 text-white/20 group-hover:text-blue-400 transition-colors" />
                           </div>
                           <div className="mt-auto text-left">
-                            <p className="text-white/40 font-mono text-sm tracking-widest mb-4">•••• •••• •••• 2026</p>
+                            <p className="text-white/40 font-mono text-xs tracking-[0.3em] mb-4">TENANT NETWORK ACCESS</p>
                             <div className="flex justify-between items-end">
-                              <span className="text-xs text-white/60 font-medium">PASSIVE INCOME PLAN</span>
-                              <span className="text-white font-bold">R299,99<span className="text-[10px] font-normal text-white/40">/mo</span></span>
+                              <span className="text-[10px] text-white/60 font-bold uppercase tracking-wider">MONTHLY FEE</span>
+                              <span className="text-white font-bold text-xl">R299,99<span className="text-[10px] font-normal text-white/40 ml-1">/mo</span></span>
                             </div>
                           </div>
                         </motion.div>
@@ -849,20 +1266,21 @@ export default function App() {
                         <motion.div 
                           whileHover={{ scale: 1.02 }}
                           onClick={() => handleSubSelect('user')}
-                          className="relative w-full max-w-[340px] aspect-[1.6/1] bg-gradient-to-br from-blue-700 to-blue-600 rounded-2xl p-6 shadow-xl cursor-pointer group border-4 border-transparent hover:border-white transition-all"
+                          className="relative w-full max-w-[340px] aspect-[1.6/1] bg-gradient-to-br from-blue-700 to-blue-600 rounded-3xl p-6 shadow-2xl cursor-pointer group border-4 border-transparent hover:border-white transition-all overflow-hidden"
                         >
+                          <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl group-hover:bg-white/10 transition-colors" />
                           <div className="flex justify-between items-start mb-6">
                             <div className="text-left">
-                              <span className="text-[10px] text-blue-100 font-bold uppercase tracking-widest">Individual</span>
+                              <span className="text-[10px] text-blue-100 font-bold uppercase tracking-widest">Personal Use</span>
                               <h3 className="text-xl font-bold text-white">User Sub</h3>
                             </div>
-                            <div className="w-10 h-7 bg-slate-100/80 rounded-md shadow-inner" />
+                            <Navigation className="w-8 h-8 text-white/20 group-hover:text-white transition-colors" />
                           </div>
                           <div className="mt-auto text-left">
-                            <p className="text-white/40 font-mono text-sm tracking-widest mb-4">•••• •••• •••• 1109</p>
+                            <p className="text-white/40 font-mono text-xs tracking-[0.3em] mb-4">ACTIVE APP ACCESS</p>
                             <div className="flex justify-between items-end">
-                              <span className="text-xs text-white/60 font-medium">ACTIVE USER PLAN</span>
-                              <span className="text-white font-bold">R29,99<span className="text-[10px] font-normal text-white/40">/mo</span></span>
+                              <span className="text-[10px] text-white/60 font-bold uppercase tracking-wider">MONTHLY FEE</span>
+                              <span className="text-white font-bold text-xl">R29,99<span className="text-[10px] font-normal text-white/40 ml-1">/mo</span></span>
                             </div>
                           </div>
                         </motion.div>
@@ -1043,10 +1461,14 @@ export default function App() {
             />
           </div>
         ) : isFullyActivated ? (
-          <div className="flex items-center justify-between w-full">
-            <TabButton icon={<Users />} label="Tenant" active={activeTab === 'tenant'} onClick={() => handleTabClick('tenant')} />
-            <TabButton icon={<Share2 />} label="Referrals" active={activeTab === 'referrals'} onClick={() => handleTabClick('referrals')} />
-            <TabButton icon={<Zap />} label="GiGs" active={activeTab === 'map'} onClick={() => setActiveTab('map')} />
+          <div className={`flex w-full ${selectedSub === 'tenant' ? 'justify-between' : 'justify-center gap-14'}`}>
+            {selectedSub === 'tenant' && (
+              <>
+                <TabButton icon={<Users />} label="Tenant" active={activeTab === 'tenant'} onClick={() => handleTabClick('tenant')} />
+                <TabButton icon={<Share2 />} label="Referrals" active={activeTab === 'referrals'} onClick={() => handleTabClick('referrals')} />
+              </>
+            )}
+            <TabButton icon={<Briefcase />} label="GiGs" active={activeTab === 'map'} onClick={() => setActiveTab('map')} />
             <TabButton icon={<UserSearch />} label="Seekers" active={activeTab === 'seekers'} onClick={() => handleTabClick('seekers')} />
             <TabButton 
               icon={<UserCircle />} 
