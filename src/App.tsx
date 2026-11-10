@@ -348,41 +348,15 @@ export default function App() {
   const [cancelReason, setCancelReason] = useState('');
   const [cancelBy, setCancelBy] = useState<'user' | 'seeker' | null>(null);
 
-  const [referralApplications, setReferralApplications] = useState([
-    { 
-      id: 1, 
-      name: 'Alice', 
-      surname: 'Smith', 
-      status: 'pending', 
-      planType: 'user',
-      date: '2026-11-08',
-      selfie: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alice',
-      idDoc: 'https://images.unsplash.com/photo-1554224155-1696413565d3?w=800&auto=format&fit=crop&q=60',
-      payment: 'https://images.unsplash.com/photo-1601597111158-2fcee29ec4d0?w=800&auto=format&fit=crop&q=60'
-    },
-    { 
-      id: 2, 
-      name: 'Bob', 
-      surname: 'Jones', 
-      status: 'pending', 
-      planType: 'tenant',
-      date: '2026-11-09',
-      selfie: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Bob',
-      idDoc: 'https://images.unsplash.com/photo-1554224155-1696413565d3?w=800&auto=format&fit=crop&q=60',
-      payment: 'https://images.unsplash.com/photo-1601597111158-2fcee29ec4d0?w=800&auto=format&fit=crop&q=60'
-    },
-    { 
-      id: 3, 
-      name: 'Charlie', 
-      surname: 'Brown', 
-      status: 'approved', 
-      planType: 'user',
-      date: '2026-11-05',
-      selfie: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Charlie',
-      idDoc: 'https://images.unsplash.com/photo-1554224155-1696413565d3?w=800&auto=format&fit=crop&q=60',
-      payment: 'https://images.unsplash.com/photo-1601597111158-2fcee29ec4d0?w=800&auto=format&fit=crop&q=60'
-    },
-  ]);
+  const [referralApplications, setReferralApplications] = useState<any[]>(() => {
+    const saved = localStorage.getItem('world_explorer_referrals');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('world_explorer_referrals', JSON.stringify(referralApplications));
+  }, [referralApplications]);
+
   const [viewingDoc, setViewingDoc] = useState<string | null>(null);
   
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -561,11 +535,14 @@ export default function App() {
     setActiveTab(prev => prev === tab ? 'map' : tab);
   };
 
-  const [seekers] = useState([
-    { id: 1, name: 'David', surname: 'Mokoena', role: 'Business Owner', distance: '1.2km', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=David' },
-    { id: 2, name: 'Sarah', surname: 'Luthuli', role: 'Event Planner', distance: '3.5km', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah' },
-    { id: 3, name: 'Thabo', surname: 'Ndlovu', role: 'Logistics Manager', distance: '0.8km', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Thabo' },
-  ]);
+  const [seekers, setSeekers] = useState<any[]>(() => {
+    const saved = localStorage.getItem('world_explorer_seekers');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('world_explorer_seekers', JSON.stringify(seekers));
+  }, [seekers]);
 
   const filteredSeekers = seekers.filter(seeker => 
     `${seeker.name} ${seeker.surname}`.toLowerCase().includes(seekerSearch.toLowerCase()) ||
