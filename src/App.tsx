@@ -198,7 +198,7 @@ function SearchBar() {
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="absolute w-full mt-2 bg-white border border-black/5 rounded-2xl shadow-2xl overflow-hidden z-[1002]"
+              className="absolute w-full mt-2 bg-white border border-black/5 rounded-2xl shadow-2xl overflow-hidden z-[1002] max-h-60 overflow-y-auto"
             >
               {suggestions.map((s) => (
                 <li
@@ -374,7 +374,6 @@ export default function App() {
       canvas.height = videoRef.current.videoHeight;
       const ctx = canvas.getContext('2d');
       if (ctx) {
-        // Mirror the image to match the preview
         ctx.translate(canvas.width, 0);
         ctx.scale(-1, 1);
         ctx.drawImage(videoRef.current, 0, 0);
@@ -471,8 +470,9 @@ export default function App() {
   };
 
   return (
-    <div className="h-screen w-full bg-slate-50 font-sans overflow-hidden">
-      <main className="h-full w-full relative">
+    <div className="flex flex-col h-screen h-[100dvh] w-full bg-slate-50 font-sans overflow-hidden">
+      {/* Content Area */}
+      <div className="flex-1 relative overflow-hidden">
         <MapContainer
           center={[20, 0]}
           zoom={2}
@@ -492,22 +492,21 @@ export default function App() {
           <CustomControls viewMode={viewMode} setViewMode={setViewMode} />
         </MapContainer>
 
-        {/* White Screen Tabs for Activated Tenant Sub */}
+        {/* Feature Tabs Overlays */}
         <AnimatePresence>
           {activeTab !== 'map' && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 z-[1500] bg-white flex flex-col items-center justify-center p-10"
+              className="absolute inset-0 z-[1500] bg-white flex flex-col items-center justify-center p-10 overflow-y-auto"
             >
-              <div className="text-center w-full max-w-lg pb-20">
+              <div className="text-center w-full max-w-lg pb-10">
                 <h1 className="text-4xl font-bold text-black uppercase tracking-[0.2em] mb-4">{activeTab}</h1>
                 <p className="text-slate-400 font-medium mb-12">Coming soon to the platform</p>
                 
                 {activeTab === 'profile' && (
                   <div className="border-t border-slate-100 pt-8">
-                    {/* Big Profile Logo (Selfie) */}
                     <div className="flex flex-col items-center mb-8">
                       <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-slate-100 shadow-xl bg-slate-50 flex items-center justify-center mb-4">
                         {currentUser?.selfieUrl ? (
@@ -524,7 +523,6 @@ export default function App() {
                       </p>
                     </div>
 
-                    {/* Contact Information */}
                     <div className="space-y-4 text-left mb-10">
                       <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
                         <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-1 ml-1">Email Address</p>
@@ -557,12 +555,12 @@ export default function App() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 z-[2500] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6"
+              className="absolute inset-0 z-[2500] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6 overflow-y-auto"
             >
               <motion.div
                 initial={{ scale: 0.9, y: 20 }}
                 animate={{ scale: 1, y: 0 }}
-                className="bg-white rounded-[2rem] w-full max-w-md p-8 md:p-12 shadow-2xl relative"
+                className="bg-white rounded-[2rem] w-full max-w-md p-8 md:p-12 shadow-2xl relative my-auto"
               >
                 <button 
                   onClick={() => setIsAuthOpen(false)}
@@ -693,12 +691,12 @@ export default function App() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 z-[2000] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6"
+              className="absolute inset-0 z-[2000] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6 overflow-y-auto"
             >
               <motion.div
                 initial={{ scale: 0.9, y: 20 }}
                 animate={{ scale: 1, y: 0 }}
-                className="bg-white rounded-[2rem] w-full max-w-4xl shadow-2xl overflow-hidden relative"
+                className="bg-white rounded-[2rem] w-full max-w-4xl shadow-2xl overflow-hidden relative my-auto"
               >
                 <button 
                   onClick={resetOnboarding}
@@ -919,46 +917,44 @@ export default function App() {
             </motion.div>
           )}
         </AnimatePresence>
+      </div>
 
-        {/* Bottom Menu Bar (2D Style) */}
-        <div className="absolute bottom-0 left-0 w-full z-[3000]">
-          <div className="bg-white border-t border-slate-200 h-20 px-6 flex items-center justify-between shadow-[0_-1px_10px_rgba(0,0,0,0.05)] pb-4">
-            {!currentUser ? (
-              <div className="flex items-center justify-center w-full">
-                <TabButton 
-                  icon={<LogIn />} 
-                  label="Sign In/Up" 
-                  active={isAuthOpen} 
-                  onClick={() => setIsAuthOpen(true)} 
-                />
-              </div>
-            ) : isFullyActivated ? (
-              <div className="flex items-center justify-between w-full">
-                <TabButton icon={<Users />} label="Tenant" active={activeTab === 'tenant'} onClick={() => handleTabClick('tenant')} />
-                <TabButton icon={<MapIcon />} label="Referrals" active={activeTab === 'referrals'} onClick={() => handleTabClick('referrals')} />
-                <TabButton icon={<Smartphone />} label="Gadgets" active={activeTab === 'gadgets'} onClick={() => handleTabClick('gadgets')} />
-                <TabButton icon={<UserSearch />} label="Seekers" active={activeTab === 'seekers'} onClick={() => handleTabClick('seekers')} />
-                <TabButton 
-                  icon={<UserCircle />} 
-                  label="Profile" 
-                  active={activeTab === 'profile'} 
-                  onClick={() => handleTabClick('profile')} 
-                  image={currentUser?.selfieUrl}
-                />
-              </div>
-            ) : (
-              <div className="flex items-center justify-center w-full">
-                <TabButton 
-                  icon={<Zap />} 
-                  label={isActivated ? 'Active' : 'Activation'} 
-                  active={isActivated} 
-                  onClick={() => setIsActivated(true)} 
-                />
-              </div>
-            )}
+      {/* Bottom Menu Bar (Persistent Flex-Based for Production) */}
+      <div className="h-20 bg-white border-t border-slate-200 shadow-[0_-1px_10px_rgba(0,0,0,0.05)] z-[3000] px-6 flex items-center justify-between pb-safe">
+        {!currentUser ? (
+          <div className="flex items-center justify-center w-full">
+            <TabButton 
+              icon={<LogIn />} 
+              label="Sign In/Up" 
+              active={isAuthOpen} 
+              onClick={() => setIsAuthOpen(true)} 
+            />
           </div>
-        </div>
-      </main>
+        ) : isFullyActivated ? (
+          <div className="flex items-center justify-between w-full">
+            <TabButton icon={<Users />} label="Tenant" active={activeTab === 'tenant'} onClick={() => handleTabClick('tenant')} />
+            <TabButton icon={<MapIcon />} label="Referrals" active={activeTab === 'referrals'} onClick={() => handleTabClick('referrals')} />
+            <TabButton icon={<Smartphone />} label="Gadgets" active={activeTab === 'gadgets'} onClick={() => handleTabClick('gadgets')} />
+            <TabButton icon={<UserSearch />} label="Seekers" active={activeTab === 'seekers'} onClick={() => handleTabClick('seekers')} />
+            <TabButton 
+              icon={<UserCircle />} 
+              label="Profile" 
+              active={activeTab === 'profile'} 
+              onClick={() => handleTabClick('profile')} 
+              image={currentUser?.selfieUrl}
+            />
+          </div>
+        ) : (
+          <div className="flex items-center justify-center w-full">
+            <TabButton 
+              icon={<Zap />} 
+              label={isActivated ? 'Active' : 'Activation'} 
+              active={isActivated} 
+              onClick={() => setIsActivated(true)} 
+            />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
