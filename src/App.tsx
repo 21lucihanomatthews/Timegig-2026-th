@@ -178,7 +178,7 @@ function SearchBar() {
   };
 
   return (
-    <div ref={searchRef} className="absolute top-4 left-4 sm:left-14 z-[1001] w-[calc(100%-2rem)] sm:w-[450px]">
+    <div ref={searchRef} className="absolute top-4 left-4 sm:left-14 z-[1001] w-[calc(100%-2rem)] sm:w-[450px] mt-safe">
       <div className="relative group">
         <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
           <Search className={`w-4 h-4 ${loading ? 'animate-pulse text-black' : 'text-black'}`} />
@@ -227,7 +227,7 @@ function CustomControls({ viewMode, setViewMode }: {
   const map = useMap();
 
   return (
-    <div className="absolute top-[80px] left-[16px] z-[1000] flex flex-col gap-5">
+    <div className="absolute top-[80px] left-[16px] z-[1000] flex flex-col gap-5 mt-safe">
       {/* Locate Me */}
       <div className="flex flex-col items-center gap-1">
         <button
@@ -749,12 +749,12 @@ export default function App() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 z-[1500] bg-white flex flex-col items-center p-6 sm:p-10 overflow-y-auto"
+              className="absolute inset-0 z-[1500] bg-white flex flex-col items-center p-6 sm:p-10 pt-safe overflow-y-auto"
             >
-              <div className="w-full max-w-lg pb-24">
+              <div className="w-full max-w-lg pb-32">
                 {/* Very Top Search Bar for Specific Features */}
                 {activeTab === 'referrals' && (
-                  <div className="relative mb-10 pt-2">
+                  <div className="relative mb-6 pt-4">
                     <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
                       <Search className="w-4 h-4 text-black" />
                     </div>
@@ -792,12 +792,15 @@ export default function App() {
                 
                 {activeTab === 'tenant' && (
                   <div className="text-left space-y-8 w-full max-w-md mx-auto pt-6 relative">
-                    <button 
-                      onClick={resetAccount}
-                      className="absolute -top-4 -right-4 p-3 bg-red-50 text-red-600 rounded-2xl hover:bg-red-100 transition-colors shadow-sm"
-                    >
-                      <LogOut className="w-5 h-5" />
-                    </button>
+                    <div className="flex justify-end mb-4">
+                      <button 
+                        onClick={resetAccount}
+                        className="p-3 bg-red-50 text-red-600 rounded-2xl hover:bg-red-100 transition-colors shadow-sm flex items-center gap-2 font-bold text-[10px] uppercase tracking-widest"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        Logout
+                      </button>
+                    </div>
                     {/* Total Profit Card */}
                     <div className="bg-black rounded-3xl p-8 text-white shadow-2xl relative overflow-hidden">
                       <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl" />
@@ -1006,12 +1009,15 @@ export default function App() {
 
                 {activeTab === 'profile' && (
                   <div className="border-t border-slate-100 pt-8 relative">
-                    <button 
-                      onClick={resetAccount}
-                      className="absolute -top-4 -right-4 p-3 bg-red-50 text-red-600 rounded-2xl hover:bg-red-100 transition-colors shadow-sm"
-                    >
-                      <LogOut className="w-5 h-5" />
-                    </button>
+                    <div className="flex justify-end mb-4">
+                      <button 
+                        onClick={resetAccount}
+                        className="p-3 bg-red-50 text-red-600 rounded-2xl hover:bg-red-100 transition-colors shadow-sm flex items-center gap-2 font-bold text-[10px] uppercase tracking-widest"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        Logout
+                      </button>
+                    </div>
                     <div className="flex flex-col items-center mb-8">
                       <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-slate-100 shadow-xl bg-slate-50 flex items-center justify-center mb-4">
                         {currentUser?.selfieUrl ? (
@@ -1236,52 +1242,84 @@ export default function App() {
                 <div className="p-8 md:p-12">
                   {step === 'subscription' && (
                     <div className="text-center">
-                      <h2 className="text-3xl font-bold text-slate-900 mb-2">Choose Activation Plan</h2>
-                      <p className="text-slate-500 mb-10 max-w-md mx-auto">Select a subscription to activate your account and join the network.</p>
-                      <div className="flex flex-col md:flex-row gap-8 justify-center">
+                      <h2 className="text-3xl font-bold text-slate-900 mb-2">Activation Plans</h2>
+                      <p className="text-slate-500 mb-10 max-w-md mx-auto">Select a subscription to unlock full platform features and join the network.</p>
+                      <div className="grid lg:grid-cols-2 gap-8 items-stretch justify-center max-w-5xl mx-auto">
                         {/* Tenant Sub */}
                         <motion.div 
-                          whileHover={{ scale: 1.02 }}
+                          whileHover={{ scale: 1.01 }}
                           onClick={() => handleSubSelect('tenant')}
-                          className="relative w-full max-w-[340px] aspect-[1.6/1] bg-gradient-to-br from-slate-900 to-black rounded-3xl p-6 shadow-2xl cursor-pointer group border-4 border-transparent hover:border-blue-500 transition-all overflow-hidden"
+                          className="relative w-full bg-slate-50 border-2 border-transparent hover:border-black rounded-[2.5rem] p-8 shadow-xl cursor-pointer group transition-all flex flex-col text-left"
                         >
-                          <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl group-hover:bg-blue-500/10 transition-colors" />
-                          <div className="flex justify-between items-start mb-6">
-                            <div className="text-left">
-                              <span className="text-[10px] text-blue-400 font-bold uppercase tracking-widest">Passive Income</span>
-                              <h3 className="text-xl font-bold text-white">Become a Tenant</h3>
+                          <div className="flex justify-between items-start mb-8">
+                            <div className="w-14 h-14 bg-black rounded-2xl flex items-center justify-center text-white shadow-lg">
+                              <Smartphone className="w-8 h-8" />
                             </div>
-                            <Smartphone className="w-8 h-8 text-white/20 group-hover:text-blue-400 transition-colors" />
+                            <div className="text-right">
+                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-1">Monthly</p>
+                              <p className="text-2xl font-black text-black">R299,99</p>
+                            </div>
                           </div>
-                          <div className="mt-auto text-left">
-                            <p className="text-white/40 font-mono text-xs tracking-[0.3em] mb-4">TENANT NETWORK ACCESS</p>
-                            <div className="flex justify-between items-end">
-                              <span className="text-[10px] text-white/60 font-bold uppercase tracking-wider">MONTHLY FEE</span>
-                              <span className="text-white font-bold text-xl">R299,99<span className="text-[10px] font-normal text-white/40 ml-1">/mo</span></span>
-                            </div>
+                          
+                          <h3 className="text-2xl font-bold text-black mb-4">Tenant Network</h3>
+                          <p className="text-slate-500 text-sm mb-8">The ultimate business plan for those looking to build a network and earn passive income.</p>
+                          
+                          <div className="space-y-4 mb-10 flex-grow">
+                            {[
+                              'Earn passive monthly income',
+                              'Build and manage your network',
+                              'Approve/Reject referral apps',
+                              'Freeze/Unfreeze user accounts',
+                              'Full access to GiGs & Seekers'
+                            ].map((feat, i) => (
+                              <div key={i} className="flex items-center gap-3 text-sm font-medium text-slate-700">
+                                <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                                <span>{feat}</span>
+                              </div>
+                            ))}
+                          </div>
+                          
+                          <div className="mt-auto pt-6 border-t border-slate-200">
+                            <span className="w-full py-4 bg-black text-white rounded-2xl font-bold text-xs uppercase tracking-widest text-center block group-hover:bg-slate-800 transition-colors">Select Tenant Plan</span>
                           </div>
                         </motion.div>
 
                         {/* User Sub */}
                         <motion.div 
-                          whileHover={{ scale: 1.02 }}
+                          whileHover={{ scale: 1.01 }}
                           onClick={() => handleSubSelect('user')}
-                          className="relative w-full max-w-[340px] aspect-[1.6/1] bg-gradient-to-br from-blue-700 to-blue-600 rounded-3xl p-6 shadow-2xl cursor-pointer group border-4 border-transparent hover:border-white transition-all overflow-hidden"
+                          className="relative w-full bg-slate-50 border-2 border-transparent hover:border-black rounded-[2.5rem] p-8 shadow-xl cursor-pointer group transition-all flex flex-col text-left"
                         >
-                          <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl group-hover:bg-white/10 transition-colors" />
-                          <div className="flex justify-between items-start mb-6">
-                            <div className="text-left">
-                              <span className="text-[10px] text-blue-100 font-bold uppercase tracking-widest">Personal Use</span>
-                              <h3 className="text-xl font-bold text-white">User Sub</h3>
+                          <div className="flex justify-between items-start mb-8">
+                            <div className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-lg">
+                              <Navigation className="w-8 h-8" />
                             </div>
-                            <Navigation className="w-8 h-8 text-white/20 group-hover:text-white transition-colors" />
+                            <div className="text-right">
+                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-1">Monthly</p>
+                              <p className="text-2xl font-black text-black">R29,99</p>
+                            </div>
                           </div>
-                          <div className="mt-auto text-left">
-                            <p className="text-white/40 font-mono text-xs tracking-[0.3em] mb-4">ACTIVE APP ACCESS</p>
-                            <div className="flex justify-between items-end">
-                              <span className="text-[10px] text-white/60 font-bold uppercase tracking-wider">MONTHLY FEE</span>
-                              <span className="text-white font-bold text-xl">R29,99<span className="text-[10px] font-normal text-white/40 ml-1">/mo</span></span>
-                            </div>
+                          
+                          <h3 className="text-2xl font-bold text-black mb-4">User Subscription</h3>
+                          <p className="text-slate-500 text-sm mb-8">Perfect for individuals who want to use the platform services and hire specialized seekers.</p>
+                          
+                          <div className="space-y-4 mb-10 flex-grow">
+                            {[
+                              'Full access to GiGs & Seekers',
+                              'Professional profile activation',
+                              'Hire seekers for specialized tasks',
+                              'Live voice-guided navigation',
+                              'Global platform usage'
+                            ].map((feat, i) => (
+                              <div key={i} className="flex items-center gap-3 text-sm font-medium text-slate-700">
+                                <CheckCircle2 className="w-4 h-4 text-blue-500 shrink-0" />
+                                <span>{feat}</span>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div className="mt-auto pt-6 border-t border-slate-200">
+                            <span className="w-full py-4 bg-blue-600 text-white rounded-2xl font-bold text-xs uppercase tracking-widest text-center block group-hover:bg-blue-700 transition-colors">Select User Plan</span>
                           </div>
                         </motion.div>
                       </div>
