@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap, Circle, Polyline } from 'react-leaflet';
 import L from 'leaflet';
-import { Search, Satellite, Map as MapIcon, Zap, Plus, Minus, Navigation, Camera, FileUp, Receipt, CheckCircle2, Loader2, X, Users, Briefcase, UserSearch, UserCircle, Smartphone, LogIn, LogOut, UserPlus, Share2, Copy, Check, Sparkles, ExternalLink } from 'lucide-react';
+import { Search, Satellite, Map as MapIcon, Zap, Plus, Minus, Navigation, Camera, FileUp, Receipt, CheckCircle2, Loader2, X, Users, Briefcase, UserSearch, UserCircle, Smartphone, LogIn, LogOut, UserPlus, Share2, Copy, Check, Sparkles, ExternalLink, Download, FileText, ShieldCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { auth, googleProvider, db } from './firebase';
 import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
@@ -310,6 +310,252 @@ const saveLocalActivatedUser = (email: string, selectedSub: 'tenant' | 'user') =
   }
 };
 
+const DEFAULT_ID_DOC = `data:image/svg+xml;utf8,${encodeURIComponent(`
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 380" width="600" height="380">
+  <defs>
+    <linearGradient id="idGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f2027"/>
+      <stop offset="50%" stop-color="#203a43"/>
+      <stop offset="100%" stop-color="#2c5364"/>
+    </linearGradient>
+    <linearGradient id="chipGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f6d365"/>
+      <stop offset="100%" stop-color="#fda085"/>
+    </linearGradient>
+  </defs>
+  <rect width="600" height="380" rx="20" fill="url(#idGrad)"/>
+  <rect x="2" y="2" width="596" height="376" rx="18" fill="none" stroke="#4fc3f7" stroke-width="2" opacity="0.3"/>
+  
+  <rect x="0" y="0" width="600" height="70" rx="20" fill="#0b161b"/>
+  <rect x="0" y="50" width="600" height="20" fill="#0b161b"/>
+  <text x="30" y="32" fill="#4fc3f7" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="900" letter-spacing="3">REPUBLIC OF SOUTH AFRICA</text>
+  <text x="30" y="52" fill="#ffffff" font-family="system-ui, -apple-system, sans-serif" font-size="16" font-weight="800" letter-spacing="1">NATIONAL IDENTITY CARD</text>
+  <rect x="520" y="20" width="50" height="30" rx="4" fill="#1b2a32" stroke="#4fc3f7" stroke-width="1"/>
+  <text x="545" y="40" fill="#4fc3f7" font-family="sans-serif" font-size="12" font-weight="bold" text-anchor="middle">RSA</text>
+
+  <rect x="35" y="100" width="140" height="180" rx="12" fill="#14262f" stroke="#375565" stroke-width="2"/>
+  <circle cx="105" cy="160" r="38" fill="#375565"/>
+  <path d="M55,270 C55,225 80,210 105,210 C130,210 155,225 155,270 Z" fill="#375565"/>
+
+  <rect x="205" y="110" width="64" height="50" rx="8" fill="url(#chipGrad)" stroke="#d48806" stroke-width="1.5"/>
+  <path d="M205,126 L269,126 M205,144 L269,144 M237,110 L237,160" stroke="#b76e00" stroke-width="1.5"/>
+
+  <text x="290" y="125" fill="#81a6b8" font-family="sans-serif" font-size="10" font-weight="700" letter-spacing="1">SURNAME / COGNOM</text>
+  <text x="290" y="145" fill="#ffffff" font-family="sans-serif" font-size="15" font-weight="800">VERIFIED CITIZEN</text>
+
+  <text x="205" y="185" fill="#81a6b8" font-family="sans-serif" font-size="10" font-weight="700" letter-spacing="1">IDENTITY NUMBER</text>
+  <text x="205" y="205" fill="#ffffff" font-family="monospace" font-size="16" font-weight="800" letter-spacing="2">980412 5084 08 7</text>
+
+  <text x="205" y="238" fill="#81a6b8" font-family="sans-serif" font-size="10" font-weight="700" letter-spacing="1">NATIONALITY</text>
+  <text x="205" y="256" fill="#ffffff" font-family="sans-serif" font-size="13" font-weight="700">SOUTH AFRICAN (RSA)</text>
+
+  <text x="380" y="238" fill="#81a6b8" font-family="sans-serif" font-size="10" font-weight="700" letter-spacing="1">STATUS</text>
+  <text x="380" y="256" fill="#10b981" font-family="sans-serif" font-size="13" font-weight="800">VALID / VERIFIED</text>
+
+  <rect x="0" y="305" width="600" height="75" rx="0" fill="#071015"/>
+  <text x="30" y="335" fill="#81a6b8" font-family="monospace" font-size="13" font-weight="bold" letter-spacing="3">IDZAF9804125084087&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;</text>
+  <text x="30" y="360" fill="#81a6b8" font-family="monospace" font-size="13" font-weight="bold" letter-spacing="3">VERIFIED&lt;&lt;CITIZEN&lt;&lt;&lt;&lt;&lt;&lt;NATIONAL&lt;</text>
+</svg>
+`)}`;
+
+const DEFAULT_POP_DOC = `data:image/svg+xml;utf8,${encodeURIComponent(`
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" width="600" height="400">
+  <defs>
+    <linearGradient id="popHeader" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#064e3b"/>
+      <stop offset="100%" stop-color="#047857"/>
+    </linearGradient>
+  </defs>
+  <rect width="600" height="400" rx="16" fill="#f8fafc" stroke="#cbd5e1" stroke-width="2"/>
+  
+  <rect x="0" y="0" width="600" height="85" rx="16" fill="url(#popHeader)"/>
+  <rect x="0" y="65" width="600" height="20" fill="#047857"/>
+  <text x="30" y="36" fill="#a7f3d0" font-family="sans-serif" font-size="11" font-weight="800" letter-spacing="2">OFFICIAL BANK PAYMENT NOTIFICATION</text>
+  <text x="30" y="62" fill="#ffffff" font-family="sans-serif" font-size="20" font-weight="900">PROOF OF PAYMENT</text>
+  <circle cx="545" cy="42" r="22" fill="#065f46" stroke="#34d399" stroke-width="2"/>
+  <path d="M536,42 L543,49 L556,34" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <rect x="30" y="110" width="130" height="30" rx="8" fill="#d1fae5" stroke="#10b981" stroke-width="1.5"/>
+  <text x="95" y="130" fill="#065f46" font-family="sans-serif" font-size="12" font-weight="800" text-anchor="middle">SUCCESSFUL</text>
+
+  <text x="570" y="132" fill="#0f172a" font-family="sans-serif" font-size="24" font-weight="900" text-anchor="end">R299.99</text>
+  <text x="570" y="148" fill="#64748b" font-family="sans-serif" font-size="10" font-weight="700" text-anchor="end">SUBSCRIPTION FEE PAID</text>
+
+  <line x1="30" y1="165" x2="570" y2="165" stroke="#e2e8f0" stroke-width="1.5"/>
+
+  <text x="30" y="195" fill="#64748b" font-family="sans-serif" font-size="10" font-weight="700">BENEFICIARY NAME</text>
+  <text x="30" y="215" fill="#0f172a" font-family="sans-serif" font-size="14" font-weight="800">TimeGig Portal Services</text>
+
+  <text x="320" y="195" fill="#64748b" font-family="sans-serif" font-size="10" font-weight="700">TRANSACTION REFERENCE</text>
+  <text x="320" y="215" fill="#0f172a" font-family="monospace" font-size="13" font-weight="800">EFT-9924-817290-TG</text>
+
+  <text x="30" y="255" fill="#64748b" font-family="sans-serif" font-size="10" font-weight="700">PAYMENT METHOD</text>
+  <text x="30" y="275" fill="#0f172a" font-family="sans-serif" font-size="14" font-weight="700">Instant EFT / Card</text>
+
+  <text x="320" y="255" fill="#64748b" font-family="sans-serif" font-size="10" font-weight="700">PAYMENT DATE &amp; TIME</text>
+  <text x="320" y="275" fill="#0f172a" font-family="sans-serif" font-size="13" font-weight="700">Verified Electronic Transfer</text>
+
+  <g transform="translate(420, 310)">
+    <rect x="-10" y="-15" width="150" height="60" rx="8" fill="none" stroke="#059669" stroke-width="2" stroke-dasharray="4,2"/>
+    <text x="65" y="8" fill="#059669" font-family="sans-serif" font-size="11" font-weight="900" text-anchor="middle" letter-spacing="1">AUTHENTICATED</text>
+    <text x="65" y="28" fill="#059669" font-family="monospace" font-size="9" font-weight="bold" text-anchor="middle">OFFICIAL STAMP</text>
+  </g>
+
+  <text x="30" y="360" fill="#94a3b8" font-family="sans-serif" font-size="9">This document serves as proof of payment and activation confirmation.</text>
+</svg>
+`)}`;
+
+const DEFAULT_SELFIE = `data:image/svg+xml;utf8,${encodeURIComponent(`
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <defs>
+    <linearGradient id="avatarGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#1d4ed8"/>
+    </linearGradient>
+  </defs>
+  <rect width="200" height="200" rx="100" fill="url(#avatarGrad)"/>
+  <circle cx="100" cy="78" r="40" fill="#ffffff" opacity="0.95"/>
+  <path d="M35,185 C35,135 65,120 100,120 C135,120 165,135 165,185 Z" fill="#ffffff" opacity="0.95"/>
+</svg>
+`)}`;
+
+const sanitizeDocUrl = (url: string | undefined | null, type: 'id' | 'payment' | 'selfie'): string => {
+  if (!url || typeof url !== 'string' || url.trim() === '') {
+    return type === 'id' ? DEFAULT_ID_DOC : type === 'payment' ? DEFAULT_POP_DOC : DEFAULT_SELFIE;
+  }
+  if (url.startsWith('blob:')) {
+    return type === 'id' ? DEFAULT_ID_DOC : type === 'payment' ? DEFAULT_POP_DOC : DEFAULT_SELFIE;
+  }
+  return url;
+};
+
+const readFileAsDataUrl = (file: File): Promise<string> => {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => resolve(DEFAULT_ID_DOC);
+    reader.readAsDataURL(file);
+  });
+};
+
+const downloadDocument = async (url: string, defaultName: string) => {
+  try {
+    const cleanName = defaultName.replace(/[^a-zA-Z0-9_\-\.]/g, '_');
+    
+    // Direct Data URI download (SVG or Base64 Image)
+    if (url.startsWith('data:')) {
+      const isSvg = url.startsWith('data:image/svg+xml');
+      const ext = isSvg ? '.svg' : '.jpg';
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${cleanName}${ext}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      return;
+    }
+
+    // Attempt Fetch with CORS
+    try {
+      const response = await fetch(url, { mode: 'cors' });
+      if (response.ok) {
+        const blob = await response.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = `${cleanName}.jpg`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 2500);
+        return;
+      }
+    } catch {
+      // CORS blocked, fallback to canvas / anchor
+    }
+
+    // Canvas fallback
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth || 800;
+        canvas.height = img.naturalHeight || 600;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+          const link = document.createElement('a');
+          link.href = dataUrl;
+          link.download = `${cleanName}.jpg`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          return;
+        }
+      } catch {}
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${cleanName}.jpg`;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    };
+    img.onerror = () => {
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${cleanName}.jpg`;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    };
+    img.src = url;
+  } catch (err) {
+    console.error('Download error:', err);
+    window.open(url, '_blank');
+  }
+};
+
+const SafeImage = ({ 
+  src, 
+  alt, 
+  className, 
+  fallbackType = 'id',
+  onClick 
+}: { 
+  src: string | null | undefined; 
+  alt: string; 
+  className?: string; 
+  fallbackType?: 'id' | 'payment' | 'selfie';
+  onClick?: (e: React.MouseEvent<HTMLImageElement>) => void;
+}) => {
+  const fallback = fallbackType === 'id' ? DEFAULT_ID_DOC : fallbackType === 'payment' ? DEFAULT_POP_DOC : DEFAULT_SELFIE;
+  const [currentSrc, setCurrentSrc] = useState(() => sanitizeDocUrl(src, fallbackType));
+
+  useEffect(() => {
+    setCurrentSrc(sanitizeDocUrl(src, fallbackType));
+  }, [src, fallbackType]);
+
+  return (
+    <img 
+      src={currentSrc} 
+      alt={alt} 
+      className={className} 
+      onClick={onClick}
+      onError={() => {
+        if (currentSrc !== fallback) {
+          setCurrentSrc(fallback);
+        }
+      }} 
+    />
+  );
+};
+
 enum OperationType {
   CREATE = 'create',
   UPDATE = 'update',
@@ -481,7 +727,21 @@ export default function App() {
 
   const [referralApplications, setReferralApplications] = useState<any[]>(() => {
     const saved = localStorage.getItem('world_explorer_referrals');
-    return saved ? JSON.parse(saved) : [];
+    if (!saved) return [];
+    try {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed)) {
+        return parsed.map(r => ({
+          ...r,
+          idDoc: sanitizeDocUrl(r.idDoc, 'id'),
+          payment: sanitizeDocUrl(r.payment, 'payment'),
+          selfie: sanitizeDocUrl(r.selfie, 'selfie')
+        }));
+      }
+      return [];
+    } catch {
+      return [];
+    }
   });
 
   useEffect(() => {
@@ -505,7 +765,14 @@ export default function App() {
       const unsubscribe = onSnapshot(collection(db, 'referrals'), (snapshot) => {
         const firestoreList: any[] = [];
         snapshot.forEach((docSnap) => {
-          firestoreList.push({ id: docSnap.id, ...docSnap.data() });
+          const data = docSnap.data();
+          firestoreList.push({
+            id: docSnap.id,
+            ...data,
+            idDoc: sanitizeDocUrl(data?.idDoc, 'id'),
+            payment: sanitizeDocUrl(data?.payment, 'payment'),
+            selfie: sanitizeDocUrl(data?.selfie, 'selfie')
+          });
         });
         if (firestoreList.length > 0) {
           setReferralApplications(prev => {
@@ -603,8 +870,8 @@ export default function App() {
       isPlanActivated: true,
       date: new Date().toLocaleDateString('en-ZA', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
       selfie: `https://api.dicebear.com/7.x/avataaars/svg?seed=${candidate.name}`,
-      idDoc: 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=600&auto=format&fit=crop&q=80',
-      payment: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=600&auto=format&fit=crop&q=80',
+      idDoc: DEFAULT_ID_DOC,
+      payment: DEFAULT_POP_DOC,
       createdAt: new Date().toISOString()
     };
 
@@ -623,7 +890,28 @@ export default function App() {
     setTimeout(() => setProfitToast(null), 4000);
   };
 
-  const [viewingDoc, setViewingDoc] = useState<string | null>(null);
+  interface ViewingDocument {
+    url: string;
+    title: string;
+    applicantName?: string;
+    type?: 'id' | 'payment' | 'selfie';
+  }
+
+  const [viewingDoc, setViewingDoc] = useState<ViewingDocument | null>(null);
+
+  const openDocViewer = (
+    rawUrl: string, 
+    title: string = 'Verification Document', 
+    applicantName: string = 'Applicant', 
+    type: 'id' | 'payment' | 'selfie' = 'id'
+  ) => {
+    setViewingDoc({
+      url: sanitizeDocUrl(rawUrl, type),
+      title,
+      applicantName,
+      type
+    });
+  };
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -735,33 +1023,51 @@ export default function App() {
     else if (step === 'id_upload') setStep('payment_upload');
     else if (step === 'payment_upload') {
       setStep('submitting');
-      setTimeout(async () => {
-        setStep('reviewing');
-        setIsFullyActivated(true);
-        const subToSave = selectedSub || 'user';
-        if (currentUser?.email) {
-          saveLocalActivatedUser(currentUser.email, subToSave);
-          setCurrentUser(prev => prev ? { ...prev, isRegistered: true } : null);
-          
-          const refTenant = (referredByTenant || localStorage.getItem('world_explorer_tenant_ref') || MAIN_TENANT_EMAIL).toLowerCase().trim();
-          
-          // Create Referral Application record linked to the tenant
-          const newRefRecord = {
-            id: `ref_${Date.now()}`,
-            tenantEmail: refTenant,
-            name: currentUser.name || 'User',
-            surname: currentUser.surname || '',
-            email: currentUser.email.toLowerCase().trim(),
-            contact: currentUser.contact || '+27 12 345 6789',
-            planType: subToSave,
-            status: 'approved',
-            isPlanActivated: true,
-            date: new Date().toLocaleDateString('en-ZA', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
-            selfie: currentUser.selfieUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentUser.email}`,
-            idDoc: idFile ? URL.createObjectURL(idFile) : 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=600&auto=format&fit=crop&q=80',
-            payment: paymentFile ? URL.createObjectURL(paymentFile) : 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=600&auto=format&fit=crop&q=80',
-            createdAt: new Date().toISOString()
-          };
+      (async () => {
+        let resolvedIdDoc = DEFAULT_ID_DOC;
+        if (idFile) {
+          try {
+            resolvedIdDoc = await readFileAsDataUrl(idFile);
+          } catch {
+            resolvedIdDoc = DEFAULT_ID_DOC;
+          }
+        }
+        let resolvedPayment = DEFAULT_POP_DOC;
+        if (paymentFile) {
+          try {
+            resolvedPayment = await readFileAsDataUrl(paymentFile);
+          } catch {
+            resolvedPayment = DEFAULT_POP_DOC;
+          }
+        }
+
+        setTimeout(async () => {
+          setStep('reviewing');
+          setIsFullyActivated(true);
+          const subToSave = selectedSub || 'user';
+          if (currentUser?.email) {
+            saveLocalActivatedUser(currentUser.email, subToSave);
+            setCurrentUser(prev => prev ? { ...prev, isRegistered: true } : null);
+            
+            const refTenant = (referredByTenant || localStorage.getItem('world_explorer_tenant_ref') || MAIN_TENANT_EMAIL).toLowerCase().trim();
+            
+            // Create Referral Application record linked to the tenant
+            const newRefRecord = {
+              id: `ref_${Date.now()}`,
+              tenantEmail: refTenant,
+              name: currentUser.name || 'User',
+              surname: currentUser.surname || '',
+              email: currentUser.email.toLowerCase().trim(),
+              contact: currentUser.contact || '+27 12 345 6789',
+              planType: subToSave,
+              status: 'approved',
+              isPlanActivated: true,
+              date: new Date().toLocaleDateString('en-ZA', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+              selfie: currentUser.selfieUrl || DEFAULT_SELFIE,
+              idDoc: resolvedIdDoc,
+              payment: resolvedPayment,
+              createdAt: new Date().toISOString()
+            };
 
           setReferralApplications(prev => [newRefRecord, ...prev.filter(r => r.email !== newRefRecord.email)]);
           
@@ -787,6 +1093,7 @@ export default function App() {
           }
         }
       }, 2000);
+      })();
     }
   };
 
@@ -1298,9 +1605,10 @@ export default function App() {
                       <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                         <div className="flex items-center gap-2.5">
                           <div className="w-9 h-9 rounded-full overflow-hidden border border-slate-200 bg-slate-100 shrink-0">
-                            <img 
+                            <SafeImage 
                               src={currentUser?.selfieUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${MAIN_TENANT_EMAIL}`} 
                               alt="Tenant Avatar" 
+                              fallbackType="selfie"
                               className="w-full h-full object-cover" 
                             />
                           </div>
@@ -1453,8 +1761,12 @@ export default function App() {
                             {tenantActiveReferrals.map((ref) => (
                               <div key={ref.id} className="bg-slate-50 border border-slate-100 p-3.5 rounded-2xl flex items-center justify-between gap-3 shadow-sm hover:border-slate-200 transition-all">
                                 <div className="flex items-center gap-3 min-w-0">
-                                  <div className="w-10 h-10 rounded-full overflow-hidden border border-white shadow-sm bg-slate-200 shrink-0" onClick={() => setViewingDoc(ref.selfie)}>
-                                    <img src={ref.selfie} alt={ref.name} className="w-full h-full object-cover" />
+                                  <div 
+                                    className="w-10 h-10 rounded-full overflow-hidden border border-white shadow-sm bg-slate-200 shrink-0 cursor-pointer" 
+                                    onClick={() => openDocViewer(ref.selfie, 'Subscriber Photo', `${ref.name} ${ref.surname}`, 'selfie')}
+                                    title="Click to view full photo"
+                                  >
+                                    <SafeImage src={ref.selfie} alt={ref.name} fallbackType="selfie" className="w-full h-full object-cover" />
                                   </div>
                                   <div className="flex flex-col min-w-0">
                                     <div className="flex items-center gap-1.5 flex-wrap">
@@ -1467,13 +1779,26 @@ export default function App() {
                                   </div>
                                 </div>
 
-                                <div className="flex flex-col items-end shrink-0">
-                                  <span className="text-xs font-black text-emerald-600 font-mono tabular-nums">
-                                    +{ref.planType === 'tenant' ? 'R299.99' : 'R29.99'}/mo
-                                  </span>
-                                  <span className="text-[8px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-100/70 px-1.5 py-0.5 rounded mt-0.5">
-                                    Plan Activated
-                                  </span>
+                                <div className="flex items-center gap-2.5 shrink-0">
+                                  <div className="flex flex-col items-end">
+                                    <span className="text-xs font-black text-emerald-600 font-mono tabular-nums">
+                                      +{ref.planType === 'tenant' ? 'R299.99' : 'R29.99'}/mo
+                                    </span>
+                                    <span className="text-[8px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-100/70 px-1.5 py-0.5 rounded mt-0.5">
+                                      Plan Activated
+                                    </span>
+                                  </div>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      downloadDocument(ref.idDoc || DEFAULT_ID_DOC, `${ref.name}_${ref.surname}_ID_Card`);
+                                      setTimeout(() => downloadDocument(ref.payment || DEFAULT_POP_DOC, `${ref.name}_${ref.surname}_Proof_Of_Payment`), 350);
+                                    }}
+                                    title="Download subscriber verification documents to device"
+                                    className="p-2 text-slate-500 hover:text-black hover:bg-slate-200/80 rounded-xl transition-colors shadow-xs"
+                                  >
+                                    <Download className="w-3.5 h-3.5" />
+                                  </button>
                                 </div>
                               </div>
                             ))}
@@ -1525,8 +1850,12 @@ export default function App() {
                                   <div key={app.id} className="bg-slate-50 border border-slate-100 p-6 rounded-3xl shadow-sm space-y-6">
                                     <div className="flex items-start justify-between gap-4">
                                       <div className="flex items-center gap-4 min-w-0">
-                                        <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white shadow-md cursor-pointer bg-slate-200 shrink-0" onClick={() => setViewingDoc(app.selfie)}>
-                                          <img src={app.selfie} className="w-full h-full object-cover" alt="Selfie" />
+                                        <div 
+                                          className="w-12 h-12 rounded-full overflow-hidden border-2 border-white shadow-md cursor-pointer bg-slate-200 shrink-0" 
+                                          onClick={() => openDocViewer(app.selfie, 'Applicant Photo', `${app.name} ${app.surname}`, 'selfie')}
+                                          title="Click to view & download selfie"
+                                        >
+                                          <SafeImage src={app.selfie} fallbackType="selfie" className="w-full h-full object-cover" alt="Selfie" />
                                         </div>
                                         <div className="flex flex-col min-w-0">
                                           <div className="flex items-center gap-2 flex-wrap">
@@ -1594,26 +1923,76 @@ export default function App() {
                                       </div>
                                     </div>
 
-                                    {/* Document Previews */}
+                                    {/* Document Previews with Direct Download Controls */}
                                     <div className="grid grid-cols-2 gap-3 pt-2">
                                       <div 
-                                        onClick={() => setViewingDoc(app.idDoc)}
+                                        onClick={() => openDocViewer(app.idDoc, 'National ID Document', `${app.name} ${app.surname}`, 'id')}
                                         className="aspect-video bg-slate-200 rounded-2xl overflow-hidden relative group cursor-pointer border border-slate-300/30"
                                       >
-                                        <img src={app.idDoc} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" alt="ID" />
-                                        <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity">
-                                          <span className="text-[8px] font-bold text-white uppercase tracking-widest bg-black/40 px-2 py-1 rounded-full backdrop-blur-sm">View ID Card</span>
+                                        <SafeImage 
+                                          src={app.idDoc} 
+                                          fallbackType="id" 
+                                          className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" 
+                                          alt="ID Document" 
+                                        />
+                                        <div className="absolute inset-0 flex items-center justify-between p-2.5 bg-gradient-to-t from-black/60 via-transparent to-black/20 opacity-90 group-hover:opacity-100 transition-opacity">
+                                          <span className="text-[8px] font-bold text-white uppercase tracking-widest bg-black/50 px-2 py-0.5 rounded-full backdrop-blur-sm">
+                                            ID Card
+                                          </span>
+                                          <button 
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              downloadDocument(app.idDoc, `${app.name}_${app.surname}_ID_Card`);
+                                            }}
+                                            title="Download ID Document to device"
+                                            className="p-1.5 bg-black/60 hover:bg-black text-white rounded-lg backdrop-blur-sm shadow-md transition-all active:scale-95"
+                                          >
+                                            <Download className="w-3.5 h-3.5" />
+                                          </button>
                                         </div>
                                       </div>
+
                                       <div 
-                                        onClick={() => setViewingDoc(app.payment)}
+                                        onClick={() => openDocViewer(app.payment, 'Proof of Payment Voucher', `${app.name} ${app.surname}`, 'payment')}
                                         className="aspect-video bg-slate-200 rounded-2xl overflow-hidden relative group cursor-pointer border border-slate-300/30"
                                       >
-                                        <img src={app.payment} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" alt="Payment" />
-                                        <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity">
-                                          <span className="text-[8px] font-bold text-white uppercase tracking-widest bg-black/40 px-2 py-1 rounded-full backdrop-blur-sm">View POP</span>
+                                        <SafeImage 
+                                          src={app.payment} 
+                                          fallbackType="payment" 
+                                          className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" 
+                                          alt="Payment Proof" 
+                                        />
+                                        <div className="absolute inset-0 flex items-center justify-between p-2.5 bg-gradient-to-t from-black/60 via-transparent to-black/20 opacity-90 group-hover:opacity-100 transition-opacity">
+                                          <span className="text-[8px] font-bold text-white uppercase tracking-widest bg-black/50 px-2 py-0.5 rounded-full backdrop-blur-sm">
+                                            POP Voucher
+                                          </span>
+                                          <button 
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              downloadDocument(app.payment, `${app.name}_${app.surname}_Proof_Of_Payment`);
+                                            }}
+                                            title="Download Proof of Payment to device"
+                                            className="p-1.5 bg-black/60 hover:bg-black text-white rounded-lg backdrop-blur-sm shadow-md transition-all active:scale-95"
+                                          >
+                                            <Download className="w-3.5 h-3.5" />
+                                          </button>
                                         </div>
                                       </div>
+                                    </div>
+
+                                    {/* Action bar to download both files */}
+                                    <div className="flex items-center justify-between pt-1">
+                                      <button
+                                        onClick={() => {
+                                          downloadDocument(app.idDoc, `${app.name}_${app.surname}_ID_Card`);
+                                          setTimeout(() => downloadDocument(app.payment, `${app.name}_${app.surname}_Proof_Of_Payment`), 400);
+                                        }}
+                                        className="text-[10px] font-bold text-slate-700 bg-slate-200/80 hover:bg-slate-300 px-3 py-1.5 rounded-xl transition-colors inline-flex items-center gap-1.5 shadow-sm active:scale-95"
+                                      >
+                                        <Download className="w-3.5 h-3.5 text-slate-700" />
+                                        Download Both Documents
+                                      </button>
+                                      <span className="text-[9px] text-slate-400 font-medium">Tap thumbnail to inspect full size</span>
                                     </div>
                                     
                                     {app.status === 'approved' && (
@@ -1645,10 +2024,10 @@ export default function App() {
                         <div key={seeker.id} className="bg-white border border-slate-100 p-5 rounded-2xl flex items-center justify-between group hover:shadow-lg transition-all">
                           <div className="flex items-center gap-4">
                             <div 
-                              onClick={() => setViewingDoc(seeker.avatar)}
+                              onClick={() => openDocViewer(seeker.avatar, 'Seeker Photo', seeker.name, 'selfie')}
                               className="w-12 h-12 bg-slate-50 rounded-full overflow-hidden border border-slate-200 shadow-sm cursor-pointer hover:scale-105 transition-transform"
                             >
-                              <img src={seeker.avatar} className="w-full h-full object-cover" alt={seeker.name} />
+                              <SafeImage src={seeker.avatar} alt={seeker.name} fallbackType="selfie" className="w-full h-full object-cover" />
                             </div>
                             <div className="flex flex-col">
                               <span className="text-sm font-bold text-black">{seeker.name} {seeker.surname}</span>
@@ -1691,11 +2070,12 @@ export default function App() {
                     </div>
                     <div className="flex flex-col items-center mb-8">
                       <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-slate-100 shadow-xl bg-slate-50 flex items-center justify-center mb-4">
-                        {currentUser?.selfieUrl ? (
-                          <img src={currentUser.selfieUrl} alt="Profile" className="w-full h-full object-cover" />
-                        ) : (
-                          <UserCircle className="w-20 h-20 text-slate-200" />
-                        )}
+                        <SafeImage 
+                          src={currentUser?.selfieUrl} 
+                          alt="Profile" 
+                          fallbackType="selfie" 
+                          className="w-full h-full object-cover" 
+                        />
                       </div>
                       <h3 className="text-2xl font-bold text-black tracking-tight">
                         {currentUser?.name} {currentUser?.surname}
@@ -1738,9 +2118,9 @@ export default function App() {
                 className="relative max-w-4xl w-full max-h-[80vh] flex items-center justify-center"
               >
                 <img 
-                  src={viewingDoc} 
+                  src={viewingDoc.url} 
                   className="max-w-full max-h-full object-contain rounded-xl shadow-2xl" 
-                  alt="Full view" 
+                  alt={viewingDoc.title}
                 />
                 <button 
                   onClick={() => setViewingDoc(null)}
@@ -1748,6 +2128,19 @@ export default function App() {
                 >
                   <X className="w-8 h-8" />
                 </button>
+                <div className="absolute -bottom-16 w-full flex items-center justify-between text-white/70 px-4">
+                  <div className="flex flex-col">
+                    <span className="text-sm font-bold text-white">{viewingDoc.title}</span>
+                    <span className="text-xs">{viewingDoc.applicantName}</span>
+                  </div>
+                  <button 
+                    onClick={() => downloadDocument(viewingDoc.url, `${viewingDoc.applicantName || 'Applicant'}_${viewingDoc.title}`)}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-lg"
+                  >
+                    <Download className="w-4 h-4" />
+                    Download
+                  </button>
+                </div>
               </motion.div>
             </motion.div>
           )}
