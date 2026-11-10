@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap, Circle, Polyline } from 'react-leaflet';
 import L from 'leaflet';
-import { Search, Satellite, Map as MapIcon, Zap, Plus, Minus, Navigation, Camera, FileUp, Receipt, CheckCircle2, Loader2, X, Users, Briefcase, UserSearch, UserCircle, Smartphone, LogIn, LogOut, UserPlus, Share2, Copy, Check, Sparkles, ExternalLink, Download, FileText, ShieldCheck } from 'lucide-react';
+import { Search, Satellite, Map as MapIcon, Zap, Plus, Minus, Navigation, Camera, FileUp, Receipt, CheckCircle2, Loader2, X, Users, Briefcase, UserSearch, UserCircle, Smartphone, LogIn, LogOut, UserPlus, Share2, Copy, Check, Sparkles, ExternalLink, Download, FileText, ShieldCheck, Settings, Target } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { auth, googleProvider, db } from './firebase';
 import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
@@ -285,7 +285,7 @@ function CustomControls({ viewMode, setViewMode }: {
 }
 
 type OnboardingStep = 'subscription' | 'selfie' | 'id_upload' | 'payment_upload' | 'submitting' | 'reviewing';
-type TabType = 'map' | 'tenant' | 'referrals' | 'gigs' | 'seekers' | 'profile';
+type TabType = 'map' | 'tenant' | 'referrals' | 'gigs' | 'seekers' | 'profile' | 'settings';
 type AuthMode = 'signin' | 'signup' | 'congrats' | 'welcome';
 
 const MAIN_TENANT_EMAIL = 'lucihanoelem@gmail.com';
@@ -1391,8 +1391,8 @@ export default function App() {
           )}
           
           <LocationMarker />
-          <SearchBar />
-          <CustomControls viewMode={viewMode} setViewMode={setViewMode} />
+          {activeTab === 'map' && <SearchBar />}
+          {activeTab === 'map' && <CustomControls viewMode={viewMode} setViewMode={setViewMode} />}
 
           {/* Active Gig Route & Marker */}
           {activeGig && (
@@ -1540,44 +1540,48 @@ export default function App() {
           )}
         </AnimatePresence>
 
-        {/* Feature Tabs Overlays */}
+        {/* Feature Tabs Overlays (Blurry Map Wallpaper Background) */}
         <AnimatePresence>
           {activeTab !== 'map' && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 z-[1500] bg-white flex flex-col items-center p-6 sm:p-10 pt-safe overflow-y-auto"
+              className="absolute inset-0 z-[1500] bg-white/70 backdrop-blur-xl flex flex-col items-center p-6 sm:p-10 pt-safe overflow-y-auto"
             >
               <div className="w-full max-w-lg pb-32">
                 {/* Very Top Search Bar for Specific Features */}
                 {activeTab === 'referrals' && (
-                  <div className="relative mb-6 pt-4">
-                    <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
-                      <Search className="w-4 h-4 text-black" />
+                  <div className="sticky top-0 z-[1600] py-2 mb-4 bg-transparent">
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+                        <Search className="w-4 h-4 text-slate-500" />
+                      </div>
+                      <input 
+                        type="text" 
+                        value={referralSearch}
+                        onChange={(e) => setReferralSearch(e.target.value)}
+                        placeholder="Search Refs..."
+                        className="w-full h-12 pl-12 pr-6 bg-white border border-slate-200/90 rounded-2xl focus:ring-2 focus:ring-blue-600 transition-all font-medium text-black placeholder:text-slate-400 shadow-md"
+                      />
                     </div>
-                    <input 
-                      type="text" 
-                      value={referralSearch}
-                      onChange={(e) => setReferralSearch(e.target.value)}
-                      placeholder="Search Refs..."
-                      className="w-full h-14 pl-12 pr-6 bg-slate-100 border-none rounded-2xl focus:ring-2 focus:ring-black transition-all font-medium text-black placeholder:text-slate-400 shadow-sm"
-                    />
                   </div>
                 )}
 
                 {activeTab === 'seekers' && (
-                  <div className="relative mb-10 pt-2">
-                    <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
-                      <Search className="w-4 h-4 text-black" />
+                  <div className="sticky top-0 z-[1600] py-2 mb-4 bg-transparent">
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+                        <Search className="w-4 h-4 text-slate-500" />
+                      </div>
+                      <input 
+                        type="text" 
+                        value={seekerSearch}
+                        onChange={(e) => setSeekerSearch(e.target.value)}
+                        placeholder="Search Seekers..."
+                        className="w-full h-12 pl-12 pr-6 bg-white border border-slate-200/90 rounded-2xl focus:ring-2 focus:ring-blue-600 transition-all font-medium text-black placeholder:text-slate-400 shadow-md"
+                      />
                     </div>
-                    <input 
-                      type="text" 
-                      value={seekerSearch}
-                      onChange={(e) => setSeekerSearch(e.target.value)}
-                      placeholder="Search Seekers..."
-                      className="w-full h-14 pl-12 pr-6 bg-slate-100 border-none rounded-2xl focus:ring-2 focus:ring-black transition-all font-medium text-black placeholder:text-slate-400 shadow-sm"
-                    />
                   </div>
                 )}
 
@@ -1603,8 +1607,8 @@ export default function App() {
                     <div className="text-left space-y-6 w-full max-w-md mx-auto pt-2 relative">
                       {/* Top Tenant Bar */}
                       <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-9 h-9 rounded-full overflow-hidden border border-slate-200 bg-slate-100 shrink-0">
+                        <div className="flex items-center gap-4">
+                          <div className="w-20 h-20 rounded-full overflow-hidden border-4 border-white shadow-xl bg-slate-100 shrink-0">
                             <SafeImage 
                               src={currentUser?.selfieUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${MAIN_TENANT_EMAIL}`} 
                               alt="Tenant Avatar" 
@@ -1614,10 +1618,10 @@ export default function App() {
                           </div>
                           <div className="flex flex-col">
                             <div className="flex items-center gap-1.5">
-                              <span className="text-xs font-bold text-black">{currentUser?.name ? `${currentUser.name} ${currentUser.surname || ''}` : 'Lucihano Elem'}</span>
-                              <span className="text-[8px] font-black uppercase px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">Tenant Partner</span>
+                              <span className="text-lg font-black text-black">{currentUser?.name ? `${currentUser.name} ${currentUser.surname || ''}` : 'Lucihano Elem'}</span>
+                              <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">Tenant Partner</span>
                             </div>
-                            <span className="text-[10px] text-slate-400 font-mono truncate">{currentUser?.email || MAIN_TENANT_EMAIL}</span>
+                            <span className="text-xs text-slate-500 font-mono truncate">{currentUser?.email || MAIN_TENANT_EMAIL}</span>
                           </div>
                         </div>
                         <button 
@@ -1815,6 +1819,13 @@ export default function App() {
                     </div>
                   );
                 })()}
+
+                {activeTab === 'settings' && (
+                  <div className="bg-white/80 backdrop-blur-md border border-slate-200/80 rounded-3xl p-8 text-center my-10 shadow-sm">
+                    <h2 className="text-2xl font-bold text-black mb-2">Settings</h2>
+                    <p className="text-slate-500 text-sm">Settings configuration coming soon.</p>
+                  </div>
+                )}
 
                 {activeTab === 'referrals' && (
                   <div className="w-full max-w-2xl mx-auto pt-4 space-y-6">
@@ -2021,7 +2032,7 @@ export default function App() {
                   <div className="w-full max-w-md mx-auto pt-4 space-y-4">
                     {filteredSeekers.length > 0 ? (
                       filteredSeekers.map(seeker => (
-                        <div key={seeker.id} className="bg-white border border-slate-100 p-5 rounded-2xl flex items-center justify-between group hover:shadow-lg transition-all">
+                        <div key={seeker.id} className="bg-white/85 backdrop-blur-md border border-slate-200/80 p-5 rounded-2xl flex items-center justify-between group hover:shadow-lg transition-all">
                           <div className="flex items-center gap-4">
                             <div 
                               onClick={() => openDocViewer(seeker.avatar, 'Seeker Photo', seeker.name, 'selfie')}
@@ -2086,11 +2097,11 @@ export default function App() {
                     </div>
 
                     <div className="space-y-4 text-left mb-10">
-                      <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                      <div className="bg-white/80 backdrop-blur-md p-4 rounded-2xl border border-slate-200/80 shadow-xs">
                         <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-1 ml-1">Email Address</p>
                         <p className="text-sm font-medium text-black ml-1">{currentUser?.email}</p>
                       </div>
-                      <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                      <div className="bg-white/80 backdrop-blur-md p-4 rounded-2xl border border-slate-200/80 shadow-xs">
                         <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-1 ml-1">Contact Number</p>
                         <p className="text-sm font-medium text-black ml-1">{currentUser?.contact}</p>
                       </div>
@@ -2575,84 +2586,170 @@ export default function App() {
         </AnimatePresence>
       </div>
 
-      {/* Bottom Menu Bar (Fixed Positioning for reliable visibility) */}
-      {!isAuthOpen && (
-        <div className="fixed bottom-0 left-0 w-full h-20 bg-white border-t border-slate-200 shadow-[0_-4px_20px_rgba(0,0,0,0.1)] z-[3000] px-6 flex items-center justify-between pb-safe">
-          {!currentUser ? (
-            <div className="flex items-center justify-center w-full">
-              <TabButton 
-                icon={<LogIn />} 
-                label="Sign In/Up" 
-                active={isAuthOpen} 
-                onClick={() => setIsAuthOpen(true)} 
-              />
-            </div>
-          ) : isFullyActivated ? (
-            <div className={`flex w-full ${selectedSub === 'tenant' ? 'justify-between' : 'justify-center gap-14'}`}>
-              {selectedSub === 'tenant' ? (
-                <>
-                  <TabButton icon={<Users />} label="Tenant" active={activeTab === 'tenant'} onClick={() => handleTabClick('tenant')} />
-                  <TabButton icon={<Share2 />} label="Refs" active={activeTab === 'referrals'} onClick={() => handleTabClick('referrals')} />
-                  <TabButton icon={<Briefcase />} label="GiGs" active={activeTab === 'map'} onClick={() => setActiveTab('map')} />
-                  <TabButton icon={<UserSearch />} label="Seekers" active={activeTab === 'seekers'} onClick={() => handleTabClick('seekers')} />
-                  <TabButton 
-                    icon={<UserCircle />} 
-                    label="Profile" 
-                    active={activeTab === 'profile'} 
-                    onClick={() => handleTabClick('profile')} 
-                    image={currentUser?.selfieUrl}
-                  />
-                </>
-              ) : (
-                <>
-                  <TabButton icon={<UserSearch />} label="Seekers" active={activeTab === 'seekers'} onClick={() => handleTabClick('seekers')} />
-                  <TabButton icon={<Briefcase />} label="GiGs" active={activeTab === 'map'} onClick={() => setActiveTab('map')} />
-                  <TabButton 
-                    icon={<UserCircle />} 
-                    label="Profile" 
-                    active={activeTab === 'profile'} 
-                    onClick={() => handleTabClick('profile')} 
-                    image={currentUser?.selfieUrl}
-                  />
-                </>
-              )}
-            </div>
-          ) : (
-            <div className="flex items-center justify-center w-full">
-              <TabButton 
-                icon={<Zap />} 
-                label={isActivated ? 'Active' : 'Activation'} 
-                active={isActivated} 
-                onClick={() => setIsActivated(true)} 
-              />
-            </div>
-          )}
-        </div>
-      )}
+      {/* Bottom Menu Bar (Takealot-Inspired Premium Look & Feel) */}
+      {!isAuthOpen && (() => {
+        const isMainTenant = currentUser?.email?.toLowerCase().trim() === MAIN_TENANT_EMAIL;
+        const tenantTarget = currentUser?.email?.toLowerCase().trim() || MAIN_TENANT_EMAIL;
+        const pendingCount = referralApplications.filter(app => {
+          const belongs = isMainTenant || (!app.tenantEmail || app.tenantEmail.toLowerCase().trim() === tenantTarget);
+          return belongs && app.status === 'pending';
+        }).length;
+        const activeTenantCount = referralApplications.filter(app => {
+          const belongs = isMainTenant || (!app.tenantEmail || app.tenantEmail.toLowerCase().trim() === tenantTarget);
+          return belongs && ((app.isPlanActivated === true || app.status === 'approved') && app.status !== 'rejected' && app.status !== 'frozen');
+        }).length;
+
+        return (
+          <div className="fixed bottom-0 left-0 w-full h-20 bg-white/95 backdrop-blur-xl border-t border-slate-200/90 shadow-[0_-8px_30px_rgba(11,121,191,0.08)] z-[3000] px-2 sm:px-6 flex items-center justify-around pb-safe">
+            {!currentUser ? (
+              <div className="flex items-center justify-center w-full">
+                <TabButton 
+                  icon={<LogIn className="w-5 h-5" />} 
+                  label="Sign In/Up" 
+                  active={isAuthOpen} 
+                  onClick={() => setIsAuthOpen(true)} 
+                />
+              </div>
+            ) : isFullyActivated ? (
+              <div className={`flex w-full items-center ${selectedSub === 'tenant' ? 'justify-around' : 'justify-center gap-10 sm:gap-14'}`}>
+                {selectedSub === 'tenant' ? (
+                  <>
+                    <TabButton 
+                      icon={<Users className="w-5 h-5" />} 
+                      label="Tenant" 
+                      active={activeTab === 'tenant'} 
+                      onClick={() => handleTabClick('tenant')} 
+                      badge={activeTenantCount > 0 ? activeTenantCount : undefined}
+                    />
+                    <TabButton 
+                      icon={<Share2 className="w-5 h-5" />} 
+                      label="Refs" 
+                      active={activeTab === 'referrals'} 
+                      onClick={() => handleTabClick('referrals')} 
+                      badge={pendingCount > 0 ? pendingCount : undefined}
+                      badgeColor="bg-amber-500"
+                    />
+                    <TabButton 
+                      icon={<Target className="w-5 h-5" />} 
+                      label="GiGs" 
+                      active={activeTab === 'map'} 
+                      onClick={() => setActiveTab('map')} 
+                    />
+                    <TabButton 
+                      icon={<UserSearch className="w-5 h-5" />} 
+                      label="Seekers" 
+                      active={activeTab === 'seekers'} 
+                      onClick={() => handleTabClick('seekers')} 
+                    />
+                    <TabButton 
+                      icon={<Settings className="w-5 h-5" />} 
+                      label="Set" 
+                      active={activeTab === 'settings'} 
+                      onClick={() => handleTabClick('settings')} 
+                    />
+                  </>
+                ) : (
+                  <>
+                    <TabButton 
+                      icon={<UserSearch className="w-5 h-5" />} 
+                      label="Seekers" 
+                      active={activeTab === 'seekers'} 
+                      onClick={() => handleTabClick('seekers')} 
+                    />
+                    <TabButton 
+                      icon={<Target className="w-5 h-5" />} 
+                      label="GiGs" 
+                      active={activeTab === 'map'} 
+                      onClick={() => setActiveTab('map')} 
+                    />
+                    <TabButton 
+                      icon={<UserCircle className="w-5 h-5" />} 
+                      label="Profile" 
+                      active={activeTab === 'profile'} 
+                      onClick={() => handleTabClick('profile')} 
+                      image={currentUser?.selfieUrl}
+                    />
+                  </>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-center justify-center w-full">
+                <TabButton 
+                  icon={<Zap className="w-5 h-5 text-amber-500 fill-amber-500/20" />} 
+                  label={isActivated ? 'Active' : 'Activation'} 
+                  active={isActivated} 
+                  onClick={() => setIsActivated(true)} 
+                />
+              </div>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 }
 
-function TabButton({ icon, label, active, onClick, image }: { 
+function TabButton({ 
+  icon, 
+  label, 
+  active, 
+  onClick, 
+  image,
+  badge,
+  badgeColor = 'bg-blue-600'
+}: { 
   icon: React.ReactNode; 
   label: string; 
   active: boolean; 
   onClick: () => void;
   image?: string;
+  badge?: string | number;
+  badgeColor?: string;
 }) {
   return (
-    <button 
+    <motion.button 
+      whileTap={{ scale: 0.92 }}
       onClick={onClick}
-      className={`flex flex-col items-center gap-1 transition-all ${active ? 'scale-110' : 'hover:opacity-80'}`}
+      className={`relative flex flex-col items-center justify-center py-1 px-3 sm:px-4 rounded-2xl transition-all duration-200 ${
+        active 
+          ? 'bg-blue-50/90 text-blue-600 shadow-xs' 
+          : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+      }`}
     >
-      <div className={`w-6 h-6 flex items-center justify-center transition-all ${active ? 'fill-black' : ''}`}>
+      {/* Top Takealot Blue Indicator Line */}
+      {active && (
+        <motion.div 
+          layoutId="tabActiveIndicator"
+          className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-7 h-1 bg-blue-600 rounded-full shadow-xs shadow-blue-500/40"
+          transition={{ type: "spring", stiffness: 450, damping: 32 }}
+        />
+      )}
+      
+      <div className="relative w-6 h-6 flex items-center justify-center">
         {image ? (
-          <div className="w-6 h-6 rounded-full overflow-hidden border border-black/10">
-            <img src={image} className="w-full h-full object-cover" alt={label} />
+          <div className={`w-6 h-6 rounded-full overflow-hidden transition-all ${
+            active ? 'ring-2 ring-blue-600 ring-offset-1' : 'border border-slate-300'
+          }`}>
+            <SafeImage src={image} alt={label} fallbackType="selfie" className="w-full h-full object-cover" />
           </div>
-        ) : icon}
+        ) : (
+          <div className={`transition-all duration-200 ${active ? 'scale-110 text-blue-600 font-bold' : 'text-slate-500'}`}>
+            {icon}
+          </div>
+        )}
+
+        {badge !== undefined && badge !== 0 && (
+          <span className={`absolute -top-1.5 -right-2.5 ${badgeColor} text-white text-[9px] font-black min-w-4 h-4 px-1 flex items-center justify-center rounded-full border-2 border-white shadow-xs animate-in zoom-in-50`}>
+            {badge}
+          </span>
+        )}
       </div>
-      <span className="text-[9px] font-bold uppercase tracking-wider text-black">{label}</span>
-    </button>
+      
+      <span className={`text-[9px] font-extrabold uppercase tracking-wider mt-0.5 transition-colors ${
+        active ? 'text-blue-600 font-black' : 'text-slate-600 font-bold'
+      }`}>
+        {label}
+      </span>
+    </motion.button>
   );
 }
