@@ -310,11 +310,28 @@ export default function App() {
   const [tenantProfit, setTenantProfit] = useState({ total: 0, sub: 0, user: 0 });
   const [activeTab, setActiveTab] = useState<TabType>('map');
   const [step, setStep] = useState<OnboardingStep>('subscription');
-  const [selectedSub, setSelectedSub] = useState<'tenant' | 'user' | null>(null);
+  const [selectedSub, setSelectedSub] = useState<'tenant' | 'user' | null>(() => {
+    return localStorage.getItem('world_explorer_selected_sub') as ('tenant' | 'user' | null) || null;
+  });
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [idFile, setIdFile] = useState<File | null>(null);
   const [paymentFile, setPaymentFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (currentUser?.email === 'timegig2026@gmail.com') {
+      setSelectedSub('tenant');
+      setIsFullyActivated(true);
+    }
+  }, [currentUser]);
+
+  useEffect(() => {
+    if (selectedSub) {
+      localStorage.setItem('world_explorer_selected_sub', selectedSub);
+    } else {
+      localStorage.removeItem('world_explorer_selected_sub');
+    }
+  }, [selectedSub]);
 
   // Gig / Hiring States
   const [activeGig, setActiveGig] = useState<{
