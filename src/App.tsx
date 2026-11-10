@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap, Circle } from 'react-leaflet';
 import L from 'leaflet';
-import { Search, Satellite, Map as MapIcon, Zap, Plus, Minus, Navigation, Camera, FileUp, Receipt, CheckCircle2, Loader2, X, Users, Briefcase, UserSearch, UserCircle, Smartphone, LogIn, UserPlus } from 'lucide-react';
+import { Search, Satellite, Map as MapIcon, Zap, Plus, Minus, Navigation, Camera, FileUp, Receipt, CheckCircle2, Loader2, X, Users, Briefcase, UserSearch, UserCircle, Smartphone, LogIn, UserPlus, Share2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 // Fix for default marker icons
@@ -282,7 +282,7 @@ function CustomControls({ viewMode, setViewMode }: {
 }
 
 type OnboardingStep = 'subscription' | 'selfie' | 'id_upload' | 'payment_upload' | 'submitting' | 'reviewing';
-type TabType = 'map' | 'tenant' | 'referrals' | 'gadgets' | 'seekers' | 'profile';
+type TabType = 'map' | 'tenant' | 'referrals' | 'gigs' | 'seekers' | 'profile';
 type AuthMode = 'signin' | 'signup' | 'congrats' | 'welcome';
 
 export default function App() {
@@ -312,6 +312,10 @@ export default function App() {
   const [idFile, setIdFile] = useState<File | null>(null);
   const [paymentFile, setPaymentFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [referralApplications, setReferralApplications] = useState([
+    { id: 1, name: 'Alice', surname: 'Smith', status: 'pending', date: '2026-11-08' },
+    { id: 2, name: 'Bob', surname: 'Jones', status: 'pending', date: '2026-11-09' },
+  ]);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -499,12 +503,120 @@ export default function App() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 z-[1500] bg-white flex flex-col items-center justify-center p-10 overflow-y-auto"
+              className="absolute inset-0 z-[1500] bg-white flex flex-col items-center p-6 sm:p-10 overflow-y-auto"
             >
-              <div className="text-center w-full max-w-lg pb-10">
-                <h1 className="text-4xl font-bold text-black uppercase tracking-[0.2em] mb-4">{activeTab}</h1>
-                <p className="text-slate-400 font-medium mb-12">Coming soon to the platform</p>
+              <div className="w-full max-w-lg pb-24">
+                {/* Very Top Search Bar for Specific Features */}
+                {(activeTab === 'referrals' || activeTab === 'seekers') && (
+                  <div className="relative mb-10 pt-2">
+                    <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+                      <Search className="w-4 h-4 text-black" />
+                    </div>
+                    <input 
+                      type="text" 
+                      placeholder={`Search ${activeTab}...`}
+                      className="w-full h-14 pl-12 pr-6 bg-slate-100 border-none rounded-2xl focus:ring-2 focus:ring-black transition-all font-medium text-black placeholder:text-slate-400 shadow-sm"
+                    />
+                  </div>
+                )}
+
+                <div className="text-center mb-10">
+                  <h1 className="text-4xl font-bold text-black uppercase tracking-[0.2em] mb-4">{activeTab}</h1>
+                  {!(activeTab === 'tenant' || activeTab === 'referrals' || activeTab === 'seekers' || activeTab === 'profile') && (
+                    <p className="text-slate-400 font-medium">Coming soon to the platform</p>
+                  )}
+                </div>
                 
+                {activeTab === 'tenant' && (
+                  <div className="text-left space-y-8 w-full max-w-md mx-auto pt-6">
+                    {/* Total Profit Card */}
+                    <div className="bg-black rounded-3xl p-8 text-white shadow-2xl relative overflow-hidden">
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl" />
+                      <p className="text-[10px] font-bold uppercase tracking-[0.3em] opacity-50 mb-1">Total Profit Balance</p>
+                      <h2 className="text-4xl font-bold tracking-tighter tabular-nums">R0.00</h2>
+                    </div>
+
+                    {/* Breakdown */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
+                        <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-1">Tenant Sub Profit</p>
+                        <p className="text-xl font-bold text-black tabular-nums">R0.00</p>
+                      </div>
+                      <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
+                        <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-1">User Sub Profit</p>
+                        <p className="text-xl font-bold text-black tabular-nums">R0.00</p>
+                      </div>
+                    </div>
+
+                    {/* Share Link */}
+                    <div className="bg-blue-50 border border-blue-100 p-6 rounded-2xl relative group">
+                      <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-3">Your Network Link</p>
+                      <div className="flex items-center gap-3 bg-white border border-blue-200 rounded-xl p-3">
+                        <input 
+                          readOnly 
+                          value={`https://worldexplorer.app/ref/${currentUser?.name?.toLowerCase() || 'user'}2026`} 
+                          className="grow text-xs font-mono text-blue-800 bg-transparent outline-none truncate"
+                        />
+                        <button 
+                          onClick={() => {
+                            navigator.clipboard.writeText(`https://worldexplorer.app/ref/${currentUser?.name?.toLowerCase() || 'user'}2026`);
+                            alert('Link copied to clipboard!');
+                          }}
+                          className="bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                          <Share2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <p className="text-[9px] text-blue-400 mt-3 font-medium">Invite users and earn a passive monthly income from their subscriptions.</p>
+                    </div>
+                  </div>
+                )}
+
+                {activeTab === 'referrals' && (
+                  <div className="w-full max-w-md mx-auto pt-4 space-y-6">
+                    <div className="space-y-4">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] ml-2">Pending Applications</p>
+                      {referralApplications.filter(app => app.status === 'pending').length > 0 ? (
+                        referralApplications.filter(app => app.status === 'pending').map(app => (
+                          <div key={app.id} className="bg-slate-50 border border-slate-100 p-5 rounded-2xl flex items-center justify-between shadow-sm">
+                            <div className="flex flex-col">
+                              <span className="text-sm font-bold text-black">{app.name} {app.surname}</span>
+                              <span className="text-[10px] text-slate-400 font-medium">Applied on {app.date}</span>
+                            </div>
+                            <div className="flex gap-2">
+                              <button 
+                                onClick={() => setReferralApplications(prev => prev.map(a => a.id === app.id ? {...a, status: 'approved'} : a))}
+                                className="px-3 py-1.5 bg-emerald-500 text-white text-[10px] font-bold uppercase tracking-wider rounded-lg hover:bg-emerald-600 transition-colors"
+                              >
+                                Approve
+                              </button>
+                              <button 
+                                onClick={() => setReferralApplications(prev => prev.map(a => a.id === app.id ? {...a, status: 'rejected'} : a))}
+                                className="px-3 py-1.5 bg-red-500 text-white text-[10px] font-bold uppercase tracking-wider rounded-lg hover:bg-red-600 transition-colors"
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-center py-10 opacity-30">
+                          <p className="text-sm font-bold uppercase tracking-widest">No Pending Referrals</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {activeTab === 'seekers' && (
+                  <div className="text-center py-10 opacity-30">
+                    <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <UserSearch className="w-8 h-8" />
+                    </div>
+                    <p className="text-sm font-bold uppercase tracking-widest">No Results Found</p>
+                  </div>
+                )}
+
                 {activeTab === 'profile' && (
                   <div className="border-t border-slate-100 pt-8">
                     <div className="flex flex-col items-center mb-8">
@@ -727,8 +839,8 @@ export default function App() {
                           <div className="mt-auto text-left">
                             <p className="text-white/40 font-mono text-sm tracking-widest mb-4">•••• •••• •••• 2026</p>
                             <div className="flex justify-between items-end">
-                              <span className="text-xs text-white/60 font-medium">ANNUAL PLAN</span>
-                              <span className="text-white font-bold">$499<span className="text-[10px] font-normal text-white/40">/mo</span></span>
+                              <span className="text-xs text-white/60 font-medium">PASSIVE INCOME PLAN</span>
+                              <span className="text-white font-bold">R299,99<span className="text-[10px] font-normal text-white/40">/mo</span></span>
                             </div>
                           </div>
                         </motion.div>
@@ -749,8 +861,8 @@ export default function App() {
                           <div className="mt-auto text-left">
                             <p className="text-white/40 font-mono text-sm tracking-widest mb-4">•••• •••• •••• 1109</p>
                             <div className="flex justify-between items-end">
-                              <span className="text-xs text-white/60 font-medium">MONTHLY PLAN</span>
-                              <span className="text-white font-bold">$19<span className="text-[10px] font-normal text-white/40">/mo</span></span>
+                              <span className="text-xs text-white/60 font-medium">ACTIVE USER PLAN</span>
+                              <span className="text-white font-bold">R29,99<span className="text-[10px] font-normal text-white/40">/mo</span></span>
                             </div>
                           </div>
                         </motion.div>
@@ -933,8 +1045,8 @@ export default function App() {
         ) : isFullyActivated ? (
           <div className="flex items-center justify-between w-full">
             <TabButton icon={<Users />} label="Tenant" active={activeTab === 'tenant'} onClick={() => handleTabClick('tenant')} />
-            <TabButton icon={<MapIcon />} label="Referrals" active={activeTab === 'referrals'} onClick={() => handleTabClick('referrals')} />
-            <TabButton icon={<Smartphone />} label="Gadgets" active={activeTab === 'gadgets'} onClick={() => handleTabClick('gadgets')} />
+            <TabButton icon={<Share2 />} label="Referrals" active={activeTab === 'referrals'} onClick={() => handleTabClick('referrals')} />
+            <TabButton icon={<Zap />} label="GiGs" active={activeTab === 'map'} onClick={() => setActiveTab('map')} />
             <TabButton icon={<UserSearch />} label="Seekers" active={activeTab === 'seekers'} onClick={() => handleTabClick('seekers')} />
             <TabButton 
               icon={<UserCircle />} 
