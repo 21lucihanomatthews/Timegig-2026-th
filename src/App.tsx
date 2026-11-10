@@ -470,9 +470,9 @@ export default function App() {
   };
 
   return (
-    <div className="flex flex-col h-screen h-[100dvh] w-full bg-slate-50 font-sans overflow-hidden">
+    <div className="h-screen h-[100dvh] w-full bg-slate-50 font-sans overflow-hidden relative">
       {/* Content Area */}
-      <div className="flex-1 relative overflow-hidden">
+      <div className="absolute inset-0 pb-20">
         <MapContainer
           center={[20, 0]}
           zoom={2}
@@ -919,8 +919,8 @@ export default function App() {
         </AnimatePresence>
       </div>
 
-      {/* Bottom Menu Bar (Persistent Flex-Based for Production) */}
-      <div className="h-20 bg-white border-t border-slate-200 shadow-[0_-1px_10px_rgba(0,0,0,0.05)] z-[3000] px-6 flex items-center justify-between pb-safe">
+      {/* Bottom Menu Bar (Fixed Positioning for reliable visibility) */}
+      <div className="fixed bottom-0 left-0 w-full h-20 bg-white border-t border-slate-200 shadow-[0_-4px_20px_rgba(0,0,0,0.1)] z-[3000] px-6 flex items-center justify-between pb-safe">
         {!currentUser ? (
           <div className="flex items-center justify-center w-full">
             <TabButton 
