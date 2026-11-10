@@ -484,35 +484,57 @@ export default function App() {
     e.preventDefault();
     const formData = new FormData(e.currentTarget as HTMLFormElement);
     const email = formData.get('email') as string;
+    const name = formData.get('name') as string || 'John';
+    const surname = formData.get('surname') as string || 'Doe';
+    const contact = formData.get('contact') as string || '+27 12 345 6789';
 
     setIsLoading(true);
     setTimeout(() => {
       setIsLoading(false);
-      if (authMode === 'signin') {
-        const isRegistered = email === 'test@test.com';
-        const name = formData.get('name') as string || 'John';
-        const surname = formData.get('surname') as string || 'Doe';
-        const contact = formData.get('contact') as string || '+1 234 567 890';
-        const mockSelfie = 'https://api.dicebear.com/7.x/avataaars/svg?seed=John';
+      
+      const registeredEmails = JSON.parse(localStorage.getItem('world_explorer_registered_emails') || '["test@test.com", "timegig2026@gmail.com"]');
+
+      if (authMode === 'signup') {
+        if (registeredEmails.includes(email)) {
+          alert('Account already exists with this email. Please sign in.');
+          setAuthMode('signin');
+          return;
+        }
         
-        setCurrentUser({ email, isRegistered, name, surname, contact, selfieUrl: mockSelfie });
-        setAuthMode('welcome');
-        setTimeout(() => {
-          setIsAuthOpen(false);
-          if (isRegistered) {
-            setIsFullyActivated(true);
-          }
-        }, 2000);
-      } else {
-        const name = formData.get('name') as string;
-        const surname = formData.get('surname') as string;
-        const contact = formData.get('contact') as string;
-        
+        // Register new user
+        registeredEmails.push(email);
+        localStorage.setItem('world_explorer_registered_emails', JSON.stringify(registeredEmails));
+
         setAuthMode('congrats');
-        setCurrentUser({ email, isRegistered: false, name, surname, contact });
+        setCurrentUser({ email, isRegistered: false, name, surname, contact, selfieUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=${name}` });
         setTimeout(() => {
           setIsAuthOpen(false);
           setIsActivated(true);
+        }, 2000);
+      } else {
+        // Sign In
+        const isMainTenant = email === 'timegig2026@gmail.com';
+        const isTestUser = email === 'test@test.com' || registeredEmails.includes(email);
+        const mockSelfie = `https://api.dicebear.com/7.x/avataaars/svg?seed=${email}`;
+        
+        if (isMainTenant) {
+          setSelectedSub('tenant');
+          setIsFullyActivated(true);
+        } else if (isTestUser) {
+          setIsFullyActivated(true);
+        }
+
+        setCurrentUser({ 
+          email, 
+          isRegistered: true, 
+          name: isMainTenant ? 'TimeGig' : name, 
+          surname: isMainTenant ? 'Tenant' : surname, 
+          contact, 
+          selfieUrl: mockSelfie 
+        });
+        setAuthMode('welcome');
+        setTimeout(() => {
+          setIsAuthOpen(false);
         }, 2000);
       }
     }, 1500);
