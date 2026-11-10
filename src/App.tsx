@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap, Circle, Polyline } from 'react-leaflet';
 import L from 'leaflet';
-import { Search, Satellite, Map as MapIcon, Zap, Plus, Minus, Navigation, Camera, FileUp, Receipt, CheckCircle2, Loader2, X, Users, Briefcase, UserSearch, UserCircle, Smartphone, LogIn, LogOut, UserPlus, Share2, Copy, Check, Sparkles, ExternalLink, Download, FileText, ShieldCheck, Settings, Target } from 'lucide-react';
+import { Search, Satellite, Map as MapIcon, Zap, Plus, Minus, Navigation, Camera, FileUp, Receipt, CheckCircle2, Loader2, X, Users, Briefcase, UserSearch, UserCircle, Smartphone, LogIn, LogOut, UserPlus, Share2, Copy, Check, Sparkles, ExternalLink, Download, FileText, ShieldCheck, Settings, Target, Play, Tv, ThumbsUp, MessageSquare, Eye, Bell, Flame, Volume2, VolumeX, Maximize2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { auth, googleProvider, db } from './firebase';
 import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
@@ -675,6 +675,83 @@ export default function App() {
     }
   });
   const [activeTab, setActiveTab] = useState<TabType>('map');
+  const [tenantSubTab, setTenantSubTab] = useState<'dashboard' | 'videos' | 'shorts' | 'community'>('dashboard');
+  const [playingVideo, setPlayingVideo] = useState<{
+    id: string;
+    title: string;
+    thumbnail: string;
+    duration: string;
+    views: string;
+    uploadedAt: string;
+    likes: number;
+    category: string;
+    description: string;
+    isShort?: boolean;
+  } | null>(null);
+  const [isSubscribedChannel, setIsSubscribedChannel] = useState(true);
+  const [videoLikes, setVideoLikes] = useState<Record<string, { count: number; userLiked: boolean }>>({
+    'vid-1': { count: 1420, userLiked: false },
+    'vid-2': { count: 2890, userLiked: false },
+    'vid-3': { count: 5410, userLiked: false },
+  });
+  const [videoComments, setVideoComments] = useState<Array<{ id: string; author: string; avatar: string; text: string; time: string; likes: number }>>([
+    {
+      id: 'c-1',
+      author: 'Sipho Ndlovu',
+      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sipho',
+      text: 'This tenant masterclass cleared up all my questions about monthly referral profits! Earned my first payout today 🙌',
+      time: '2 hours ago',
+      likes: 24,
+    },
+    {
+      id: 'c-2',
+      author: 'Thandiwe Khumalo',
+      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Thandiwe',
+      text: 'Sharing my referral link in my local property group got me 3 active tenant subscribers in under 24 hrs. Highly recommend watching!',
+      time: '1 day ago',
+      likes: 58,
+    },
+  ]);
+  const [newCommentInput, setNewCommentInput] = useState('');
+  const [isVideoMuted, setIsVideoMuted] = useState(false);
+  const [isVideoPlaying, setIsVideoPlaying] = useState(true);
+
+  const TENANT_VIDEOS = [
+    {
+      id: 'vid-1',
+      title: 'Tenant Masterclass 2026: Secrets to Finding & Securing Your Dream Rental',
+      thumbnail: '/src/assets/images/tenant_tutorial_thumbnail_1794298977954.jpg',
+      duration: '08:42',
+      views: '14.8K views',
+      uploadedAt: '2 days ago',
+      likes: 1420,
+      category: 'Masterclass',
+      description: 'Master step-by-step strategies for tenant referral earnings, document verification, and recurring monthly profits on the platform.',
+    },
+    {
+      id: 'vid-2',
+      title: 'Fast Financial Growth: Earning R299.99/mo Recurring Tenant Referral Profit',
+      thumbnail: '/src/assets/images/referral_strategy_thumbnail_1794298976898.jpg',
+      duration: '05:18',
+      views: '28.4K views',
+      uploadedAt: '1 week ago',
+      likes: 2890,
+      category: 'Strategy',
+      description: 'A deep dive into tenant referral economics. Understand the payout pipeline, plan activations, and profit calculation breakdowns.',
+    },
+    {
+      id: 'vid-3',
+      title: '⚡ 30-Sec Hack to Double Your Tenant Sub Profit',
+      thumbnail: '/src/assets/images/tenant_shorts_thumbnail_1794298977668.jpg',
+      duration: '00:45',
+      views: '45.2K views',
+      uploadedAt: '3 days ago',
+      likes: 5410,
+      category: 'Shorts',
+      isShort: true,
+      description: 'Quick vertical short showing how top tenant partners share their unique referral link to onboard active subscribers in under 24 hours.',
+    },
+  ];
   const [step, setStep] = useState<OnboardingStep>('subscription');
   const [selectedSub, setSelectedSub] = useState<'tenant' | 'user' | null>(() => {
     const savedUser = localStorage.getItem('world_explorer_user');
