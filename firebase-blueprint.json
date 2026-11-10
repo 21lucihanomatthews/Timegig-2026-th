@@ -1,0 +1,62 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "App user account data",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "name": { "type": "string" },
+        "surname": { "type": "string" },
+        "contact": { "type": "string" },
+        "selfieUrl": { "type": "string" },
+        "isRegistered": { "type": "boolean" },
+        "selectedSub": { "type": "string" }
+      },
+      "required": ["email"]
+    },
+    "Referral": {
+      "title": "Referral",
+      "description": "Referral application record",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "surname": { "type": "string" },
+        "status": { "type": "string" },
+        "planType": { "type": "string" },
+        "date": { "type": "string" },
+        "selfie": { "type": "string" },
+        "idDoc": { "type": "string" },
+        "payment": { "type": "string" }
+      },
+      "required": ["name", "status"]
+    },
+    "Seeker": {
+      "title": "Seeker",
+      "description": "Seeker profile record",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "surname": { "type": "string" },
+        "role": { "type": "string" },
+        "distance": { "type": "string" },
+        "avatar": { "type": "string" }
+      },
+      "required": ["name", "role"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profiles"
+    },
+    "/referrals/{referralId}": {
+      "schema": { "$ref": "#/entities/Referral" },
+      "description": "Referral applications"
+    },
+    "/seekers/{seekerId}": {
+      "schema": { "$ref": "#/entities/Seeker" },
+      "description": "Seekers directory"
+    }
+  }
+}
